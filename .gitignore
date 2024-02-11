@@ -1,0 +1,10 @@
+# terraform build files
+.cloud/.terraform/
+.terraform.lock.hcl
+
+# IDEs
+.DS_Store
+.idea/
+
+# build
+__pycache__/

@@ -1,0 +1,35 @@
+# Build, Push & Deploy to CloudRun Dev envn't
+
+name: deploy-dev
+
+on:
+  push:
+    branches:
+      - 'develop'
+
+# avoid possible race condition on multiple merges to develop
+concurrency:
+  group: ${{ github.workflow }}
+  cancel-in-progress: true
+
+jobs:
+  run-deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+
+    - name: 'Authenticate to Google Cloud'
+      uses: google-github-actions/auth@v2
+      with:
+        credentials_json: ${{ secrets.GCP_SERVICE_ACCOUNT }}
+
+    - name: 'Set up Google Cloud SDK'
+      uses: google-github-actions/setup-gcloud@v2
+
+
+    - name: 'GCloud Build: build, push, deploy to dev'
+      run: |
+#        gcloud builds submit TBD
