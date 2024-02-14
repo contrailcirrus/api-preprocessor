@@ -1,0 +1,15 @@
+[[source]]
+url = "https://pypi.org/simple"
+verify_ssl = true
+name = "pypi"
+
+[packages]
+flask = "*"
+
+[dev-packages]
+ruff = "0.2.1"
+black = "24.2.0"
+pre-commit = "==3.6.0"
+
+[requires]
+python_version = "3.12"

@@ -1,0 +1,16 @@
+repos:
+- repo: local
+  hooks:
+  - id: black
+    name: black
+    language: python
+    entry: black
+    types_or:
+      - python
+      - jupyter
+  - id: ruff
+    name: ruff
+    language: python
+    entry: ruff
+    types_or:
+      - python
