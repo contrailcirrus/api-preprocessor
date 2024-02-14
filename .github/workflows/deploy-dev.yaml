@@ -32,4 +32,4 @@ jobs:
 
     - name: 'GCloud Build: build, push, deploy to dev'
       run: |
-#        gcloud builds submit TBD
+        gcloud builds submit --substitutions _IMAGE=api-preprocessor-dev,_TAG=$(git describe --tags),_API_PREPROCESSOR_JOB_PUBSUB_SUBSCRIPTION_ID=projects/contrails-301217/subscriptions/api-preprocessor-sub-dev
