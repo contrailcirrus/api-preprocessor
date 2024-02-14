@@ -34,24 +34,35 @@ def run() -> tuple[str, int]:
     # TODO: extract job attributes from payload
 
     # stubbed values
-    roll_em = randint(0, 100)
+    # -------
+    # input params
+    aircraft_class = "default"  # noqa:F841 please help to enum all of these
     flight_level = 300
     model_run_at = 1707890400
     model_predicted_at = 1707926400
     polygon_thresholds = [500000000, 5000000, 50000]
 
+    # helpers
     offset_hrs = (model_predicted_at - model_run_at) // 60
+    roll_em = randint(0, 100)
+
+    # output paths
     grids_gcs_sink_path = (  # noqa:F841
         f"gs://contrails-301217-api-preprocessor-dev/"
-        f"grids/{model_predicted_at}_{flight_level}/{offset_hrs}-{roll_em}.nc"
+        f"grids/{aircraft_class}/{model_predicted_at}_{flight_level}/{offset_hrs}-{roll_em}.nc"
     )
     regions_gcs_sink_path = [  # noqa:F841
         (
             f"gs://contrails-301217-api-preprocessor-dev/"
-            f"regions/{model_predicted_at}_{flight_level}/{offset_hrs}-{roll_em}/{thres}.geojson"
+            f"regions/{aircraft_class}/{model_predicted_at}_{flight_level}/"
+            f"{offset_hrs}-{roll_em}/{thres}.geojson"
         )
         for thres in polygon_thresholds
     ]
+
+    # TODO: build cocip grid at 0.25deg x 0.25deg, export to gcs as netcdf file
+    # TODO: build polygon files for each threshold, export gcs as geojson
+
     logger.info("processing of job complete.  message id: foobar")
     return "success", 200
 
