@@ -1,7 +1,5 @@
 """Entrypoint for the (internal) API hosting API Preprocessor methods."""
 
-from random import randint
-
 import flask
 
 from app.log import logger
@@ -41,21 +39,21 @@ def run() -> tuple[str, int]:
     model_run_at = 1707890400
     model_predicted_at = 1707926400
     polygon_thresholds = [500000000, 5000000, 50000]
+    max_age_hr = 12  # noqa:F841
 
     # helpers
     offset_hrs = (model_predicted_at - model_run_at) // 60
-    roll_em = randint(0, 100)
 
     # output paths
     grids_gcs_sink_path = (  # noqa:F841
         f"gs://contrails-301217-api-preprocessor-dev/"
-        f"grids/{aircraft_class}/{model_predicted_at}_{flight_level}/{offset_hrs}-{roll_em}.nc"
+        f"grids/{aircraft_class}/{model_predicted_at}_{flight_level}/{offset_hrs}.nc"
     )
     regions_gcs_sink_path = [  # noqa:F841
         (
             f"gs://contrails-301217-api-preprocessor-dev/"
             f"regions/{aircraft_class}/{model_predicted_at}_{flight_level}/"
-            f"{offset_hrs}-{roll_em}/{thres}.geojson"
+            f"{offset_hrs}/{thres}.geojson"
         )
         for thres in polygon_thresholds
     ]
