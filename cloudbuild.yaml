@@ -33,21 +33,6 @@ steps:
       - "${_REGION}-docker.pkg.dev/$PROJECT_ID/api-preprocessor/${_IMAGE}"
       - "--all-tags"
 
-  # Prune old container images
-  # Keep everything for the last 30 days, then keep 10 images beyond that.
-  - name: "us-docker.pkg.dev/gcr-cleaner/gcr-cleaner/gcr-cleaner-cli:latest"
-    waitFor:
-      - "-" # Run immediately when build starts
-    args:
-      - "-repo"
-      - "${_REGION}-docker.pkg.dev/$PROJECT_ID/api-preprocessor/${_IMAGE}"
-      - "-keep"
-      - "10"
-      - "-grace"
-      - "720h"
-      - "-tag-filter-any"
-      - ".*"
-
   # Deploy container image to Cloud Run
   - name: "gcr.io/google.com/cloudsdktool/cloud-sdk"
     entrypoint: gcloud
@@ -83,5 +68,15 @@ steps:
       - "--set-env-vars"
       - "SINK_PATH=${_SINK_PATH},LOG_LEVEL=${_LOG_LEVEL},API_PREPROCESSOR_SUBSCRIPTION_ID=${_API_PREPROCESSOR_SUBSCRIPTION_ID}"
 
-# Set timeout for the whole build / push at 60 minutes.
-timeout: 3600s
+  # Prune old container images
+  # Keep at most 10 images
+  - name: 'us-docker.pkg.dev/gcr-cleaner/gcr-cleaner/gcr-cleaner-cli:latest'
+    args:
+      - '-repo'
+      - '${_REGION}-docker.pkg.dev/$PROJECT_ID/hres-etl/${_IMAGE}'
+      - '-keep'
+      - '10'
+      - '-tag-filter-any'
+      - '.*'
+    waitFor:
+      - '-'  # Run immediately when build starts
