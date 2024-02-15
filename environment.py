@@ -8,8 +8,6 @@ Required environment variables should be imported first, followed by optional en
 import os
 
 SINK_PATH = os.environ["SINK_PATH"]
-API_PREPROCESSOR_JOB_PUBSUB_SUBSCRIPTION_ID = os.environ[
-    "API_PREPROCESSOR_JOB_PUBSUB_SUBSCRIPTION_ID"
-]
+API_PREPROCESSOR_SUBSCRIPTION_ID = os.environ["API_PREPROCESSOR_SUBSCRIPTION_ID"]
 
 LOG_LEVEL = os.environ.get("LOG_LEVEL", "DEBUG")

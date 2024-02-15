@@ -81,7 +81,7 @@ steps:
       - "gen2" # options: gen1, gen2
       - "--cpu-boost" # https://cloud.google.com/run/docs/configuring/cpu#startup-boost
       - "--set-env-vars"
-      - "API_PREPROCESSOR_JOB_PUBSUB_SUBSCRIPTION_ID=${_API_PREPROCESSOR_SUBSCRIPTION_ID},LOG_LEVEL=${_LOG_LEVEL},API_PREPROCESSOR_JOB_PUBSUB_SUBSCRIPTION_ID=${_API_PREPROCESSOR_JOB_PUBSUB_SUBSCRIPTION_ID}"
+      - "SINK_PATH=${_SINK_PATH},LOG_LEVEL=${_LOG_LEVEL},API_PREPROCESSOR_SUBSCRIPTION_ID=${_API_PREPROCESSOR_SUBSCRIPTION_ID}"
 
 # Set timeout for the whole build / push at 60 minutes.
 timeout: 3600s
