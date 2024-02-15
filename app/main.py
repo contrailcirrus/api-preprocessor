@@ -4,7 +4,7 @@ from random import randint
 
 import flask
 
-from log import logger
+from app.log import logger
 
 app = flask.Flask(__name__)
 
