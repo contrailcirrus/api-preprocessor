@@ -5,7 +5,10 @@
 # IDEs
 .DS_Store
 .idea/
+.vscode/
 
 # build
 __pycache__/
 
+# local environment
+.env

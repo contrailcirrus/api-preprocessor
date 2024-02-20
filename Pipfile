@@ -5,8 +5,10 @@ name = "pypi"
 
 [packages]
 flask = "==3.0.2"
+gcsfs = "==2023.12.2post1"
 hypercorn = "==0.16.0"
-
+pycontrails = "==0.49.3"
+zarr = "==2.16.1"
 
 [dev-packages]
 ruff = "0.2.1"
