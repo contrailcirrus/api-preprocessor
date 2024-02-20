@@ -33,7 +33,8 @@ PROVISIONAL_COCIP_GRID_PARAMS = dict(
     interpolation_bounds_error=True,
     show_progress=False,
     filter_sac=True,
-    copy_source=True
+    copy_source=True,
+    met_level_buffer=(20, 20),
 )
 
 @app.route("/", methods=["GET"])
@@ -104,7 +105,7 @@ def run() -> tuple[str, int]:
     # input params
     aircraft_class = "default"  # noqa:F841 please help to enum all of these
     flight_level = 300
-    model_run_at = 1708318800
+    model_run_at = 1708322400
     model_predicted_at = 1708354800
     polygon_thresholds = [500000000, 5000000, 50000]
     max_max_age_hr = 12  # noqa:F841
@@ -127,16 +128,15 @@ def run() -> tuple[str, int]:
     ]
 
     # TODO: build cocip grid at 0.25deg x 0.25deg, export to gcs as netcdf file
-    run_at = datetime.datetime.fromtimestamp(model_run_at)
-    pred_at = datetime.datetime.fromtimestamp(model_predicted_at)
+    run_at = datetime.datetime.fromtimestamp(model_run_at, tz=datetime.timezone.utc)
+    pred_at = datetime.datetime.fromtimestamp(model_predicted_at, tz=datetime.timezone.utc)
     max_age = min(datetime.timedelta(hours=max_max_age_hr), run_at + datetime.timedelta(hours=72) - pred_at)
 
     met, rad = _load_met_rad(run_at)
     source = _create_cocip_grid_source(pred_at, flight_level)
     model = _create_cocip_grid_model(met, rad, aircraft_class)
 
-    result = model.eval(source)
-    result.data.to_netcdf(...)
+    result = model.eval(source, max_age=max_age)
 
     fs = gcsfs.GCSFileSystem()
     with fs.open(grids_gcs_sink_path) as f:
