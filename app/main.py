@@ -1,10 +1,12 @@
 """Entrypoint for the (internal) API hosting API Preprocessor methods."""
 
 import datetime
+import io
 import flask
 import numpy as np
 import xarray as xr
 import gcsfs
+import tempfile
 
 from pycontrails import MetDataset
 from pycontrails.models.cocipgrid import CocipGrid
@@ -17,10 +19,9 @@ from app.log import logger
 app = flask.Flask(__name__)
 
 # TODO: finalize values
-PROVISIONAL_COCIP_GRID_PARAMS = dict(
+PROVISIONAL_STATIC_PARAMS = dict(
     humidity_scaling=ExponentialBoostLatitudeCorrectionHumidityScaling(),
     dt_integration= "5min",
-    max_age="12h",
     met_slice_dt="1h",
     target_split_size=100_000,
     target_split_size_pre_SAC_boost=2.5,
@@ -30,7 +31,7 @@ PROVISIONAL_COCIP_GRID_PARAMS = dict(
     segment_length=None,
     dsn_dz_factor=0.665,
     interpolation_use_indices=True,
-    interpolation_bounds_error=True,
+    interpolation_bounds_error=False,
     show_progress=False,
     filter_sac=True,
     copy_source=True,
@@ -75,12 +76,30 @@ def _create_cocip_grid_source(t: datetime.datetime, flight_level: int) -> MetDat
 
 def _create_cocip_grid_model(met: MetDataset, rad: MetDataset, aircraft_class: str) -> CocipGrid:
     # TODO: set relevant parameters based on aircraft class
+    # Logic for setting per-class parameters should probably live in pycontrails,
+    # but doesn't exist yet
     return CocipGrid(
         met=met,
         rad=rad,
         aircraft_performance=PSGrid(),
-        **PROVISIONAL_COCIP_GRID_PARAMS
+        **PROVISIONAL_STATIC_PARAMS
     )
+
+def _fix_attrs(result: MetDataset) -> None:
+    for key, value in result.data.attrs.items():
+        if value is None:
+            result.data.attrs[key] = "None"
+
+def _save_nc4(ds: xr.Dataset, sink_path: str) -> None:
+    # Can only save as netcdf3 with file-like objects:
+    # https://docs.xarray.dev/en/stable/generated/xarray.Dataset.to_netcdf.html.
+    # We want netcdf4, so have to save to a temporary file using its path,
+    # then transfer the result to the cloud bucket
+    with tempfile.NamedTemporaryFile(delete_on_close=False) as tmp:
+        tmp.close()
+        ds.to_netcdf(tmp.name, format="NETCDF4")
+        fs = gcsfs.GCSFileSystem()
+        fs.put(tmp.name, sink_path)
     
 
 @app.route("/run", methods=["POST"])
@@ -131,18 +150,13 @@ def run() -> tuple[str, int]:
     run_at = datetime.datetime.fromtimestamp(model_run_at, tz=datetime.timezone.utc)
     pred_at = datetime.datetime.fromtimestamp(model_predicted_at, tz=datetime.timezone.utc)
     max_age = min(datetime.timedelta(hours=max_max_age_hr), run_at + datetime.timedelta(hours=72) - pred_at)
-
-    met, rad = _load_met_rad(run_at)
     source = _create_cocip_grid_source(pred_at, flight_level)
+    met, rad = _load_met_rad(run_at)
     model = _create_cocip_grid_model(met, rad, aircraft_class)
-
     result = model.eval(source, max_age=max_age)
-
-    fs = gcsfs.GCSFileSystem()
-    with fs.open(grids_gcs_sink_path) as f:
-        result.data.to_netcdf(f)
-
-    # save w/ gcsfs
+    _fix_attrs(result)      # serialization as netcdf fails if any attributes are None,
+                            # so replace None with "None" in attributes
+    _save_nc4(result.data, grids_gcs_sink_path)       # complicated---see comments in helper function
 
     # TODO: build polygon files for each threshold, export gcs as geojson
 
