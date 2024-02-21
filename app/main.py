@@ -1,7 +1,6 @@
 """Entrypoint for the (internal) API hosting API Preprocessor methods."""
 
 import datetime
-import io
 import flask
 import numpy as np
 import xarray as xr
@@ -45,6 +44,9 @@ def health_check() -> tuple[str, int]:
     return "success", 200
 
 def _load_met_rad(t: datetime.datetime) -> tuple[MetDataset, MetDataset]:
+    # NOTE: this bucket contains 0.25 x 0.25 degree HRES data
+    # full-resolution (0.1 x 0.1 degree) HRES data is in
+    # gs://contrails-301217-ecmwf-hres-forecast-v2-short-term-dev
     bucket = "gs://contrails-301217-ecmwf-hres-forecast-v2-short-term"
     forecast = t.strftime("%Y%m%d%H")
     
@@ -151,7 +153,7 @@ def run() -> tuple[str, int]:
     pred_at = datetime.datetime.fromtimestamp(model_predicted_at, tz=datetime.timezone.utc)
     max_age = min(datetime.timedelta(hours=max_max_age_hr), run_at + datetime.timedelta(hours=72) - pred_at)
     source = _create_cocip_grid_source(pred_at, flight_level)
-    met, rad = _load_met_rad(run_at)
+    met, rad = _load_met_rad(run_at)    # currently using 0.25 x 0.25 HRES data for ease of testing
     model = _create_cocip_grid_model(met, rad, aircraft_class)
     result = model.eval(source, max_age=max_age)
     _fix_attrs(result)      # serialization as netcdf fails if any attributes are None,
