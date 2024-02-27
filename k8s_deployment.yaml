@@ -1,0 +1,40 @@
+# test deployment for k8s
+# kubectl apply -f k8s_deployment.yaml -n api-preprocessor
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: api-preprocessor-dev
+  labels:
+    app: api-preprocessor-dev
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: api-preprocessor-dev
+  template:
+    metadata:
+      labels:
+        app: api-preprocessor-dev
+    spec:
+      serviceAccountName: api-preprocessor-k8s-default-sa
+      containers:
+      - name: api-preprocessor-dev
+        image: us-east1-docker.pkg.dev/contrails-301217/api-preprocessor/api-preprocessor-dev:latest
+        ports:
+        - containerPort: 8080
+        env:
+          - name: SINK_PATH
+            value: "gs://contrails-301217-foobar"
+          - name: API_PREPROCESSOR_SUBSCRIPTION_ID
+            value: "projects/contrails-301217/subscriptions/api-preprocessor-sub-dev"
+          - name: LOG_LEVEL
+            value: "INFO"
+        resources:
+          limits:
+            cpu: "2"
+            ephemeral-storage: "1Gi"
+            memory: "8Gi"
+          requests:
+            cpu: "2"
+            ephemeral-storage: "1Gi"
+            memory: "8Gi"
