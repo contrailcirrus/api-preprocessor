@@ -34,6 +34,9 @@ resource "google_project_iam_member" "api_preprocessor_sa_binding_A" {
   member  = "serviceAccount:${google_service_account.api_preprocessor_sa.email}"
   project = "contrails-301217"
   role    = google_project_iam_custom_role.api_preprocessor_role.id
+  depends_on = [
+    google_service_account.api_preprocessor_sa,
+  ]
 }
 
 resource "google_service_account_iam_binding" "k8s_sa_to_api_preprocessor_sa_binding" {
@@ -45,5 +48,6 @@ resource "google_service_account_iam_binding" "k8s_sa_to_api_preprocessor_sa_bin
   ]
   depends_on = [
     kubernetes_service_account.api-preprocessor-k8s-default-sa,
+    google_service_account.api_preprocessor_sa,
   ]
 }
