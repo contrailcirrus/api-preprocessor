@@ -16,6 +16,8 @@ class ApiPreprocessorJob:
       - model_run_at: unixtime at which model was executed
       - model_predicted_at: unixtime at which model predicts outputs quantities
       - flight_level: the flight level for this job's unit of work
+      - aircraft_class: the string literal defining the aircraft class
+
     """
 
     # predefined flight levels

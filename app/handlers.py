@@ -86,7 +86,7 @@ class CocipHandler:
             self._run_at_dt + timedelta(hours=72) - self._predicted_at_dt,
         )
 
-        offset_hrs = (job.model_predicted_at - job.model_run_at) // 60
+        offset_hrs = (job.model_predicted_at - job.model_run_at) // 3600
         self.grids_gcs_sink_path = (
             f"{grids_sink_path}/{job.aircraft_class}"
             f"/{job.model_predicted_at}_{job.flight_level}/{offset_hrs}.nc"
