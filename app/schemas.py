@@ -18,7 +18,7 @@ class ApiPreprocessorJob:
       - flight_level: the flight level for this job's unit of work
     """
 
-    # predefined flight levels for API preprocessor jobs
+    # predefined flight levels
     FLIGHT_LEVELS = [
         270,
         280,
@@ -40,9 +40,15 @@ class ApiPreprocessorJob:
         440,
     ]
 
+    # predefined aircraft classes
+    AIRCRAFT_CLASSES = [
+        "default",
+    ]
+
     model_run_at: int
     model_predicted_at: int
     flight_level: Literal[*FLIGHT_LEVELS]
+    aircraft_class: Literal[*AIRCRAFT_CLASSES]
 
     def as_utf8_json(self) -> bytes:
         """
