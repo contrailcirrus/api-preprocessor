@@ -36,6 +36,7 @@ resource "google_project_iam_member" "api_preprocessor_sa_binding_A" {
   role    = google_project_iam_custom_role.api_preprocessor_role.id
   depends_on = [
     google_service_account.api_preprocessor_sa,
+    google_project_iam_custom_role.api_preprocessor_role,
   ]
 }
 
