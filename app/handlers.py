@@ -31,7 +31,6 @@ class CocipHandler:
     PROVISIONAL_STATIC_PARAMS = dict(
         humidity_scaling=ExponentialBoostLatitudeCorrectionHumidityScaling(),
         dt_integration="5min",
-        met_slice_dt="1h",
         target_split_size=100_000,
         target_split_size_pre_SAC_boost=2.5,
         max_altitude_m=None,
