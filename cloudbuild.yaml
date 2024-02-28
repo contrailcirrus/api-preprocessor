@@ -1,7 +1,6 @@
 # Build container for deployment on cloud run
 substitutions:
   _REGION: "us-east1"
-  _SERVICE_ACCOUNT: "api-preprocessor@contrails-301217.iam.gserviceaccount.com"
 
 steps:
   # Build the container image
