@@ -10,7 +10,9 @@ import tempfile
 from pycontrails import MetDataset
 from pycontrails.models.cocipgrid import CocipGrid
 from pycontrails.models.ps_model import PSGrid
-from pycontrails.models.humidity_scaling import ExponentialBoostLatitudeCorrectionHumidityScaling
+from pycontrails.models.humidity_scaling import (
+    ExponentialBoostLatitudeCorrectionHumidityScaling,
+)
 from pycontrails.physics import units
 
 from app.log import logger
@@ -20,7 +22,7 @@ app = flask.Flask(__name__)
 # TODO: finalize values
 PROVISIONAL_STATIC_PARAMS = dict(
     humidity_scaling=ExponentialBoostLatitudeCorrectionHumidityScaling(),
-    dt_integration= "5min",
+    dt_integration="5min",
     met_slice_dt="1h",
     target_split_size=100_000,
     target_split_size_pre_SAC_boost=2.5,
@@ -37,11 +39,13 @@ PROVISIONAL_STATIC_PARAMS = dict(
     met_level_buffer=(20, 20),
 )
 
+
 @app.route("/", methods=["GET"])
 def health_check() -> tuple[str, int]:
     """Check if the app is running."""
-    logger.info("Call health check /")
+    logger.info("call health check /")
     return "success", 200
+
 
 def _load_met_rad(t: datetime.datetime) -> tuple[MetDataset, MetDataset]:
     # NOTE: this bucket contains 0.25 x 0.25 degree HRES data
@@ -49,12 +53,12 @@ def _load_met_rad(t: datetime.datetime) -> tuple[MetDataset, MetDataset]:
     # gs://contrails-301217-ecmwf-hres-forecast-v2-short-term-dev
     bucket = "gs://contrails-301217-ecmwf-hres-forecast-v2-short-term"
     forecast = t.strftime("%Y%m%d%H")
-    
+
     pl = xr.open_zarr(f"{bucket}/{forecast}/pl.zarr/")
     met = MetDataset(pl, provider="ECMWF", dataset="HRES", product="forecast")
     variables = (v[0] if isinstance(v, tuple) else v for v in CocipGrid.met_variables)
     met.standardize_variables(variables)
-    
+
     sl = xr.open_zarr(f"{bucket}/{forecast}/sl.zarr/")
     rad = MetDataset(sl, provider="ECMWF", dataset="HRES", product="forecast")
     variables = (v[0] if isinstance(v, tuple) else v for v in CocipGrid.rad_variables)
@@ -76,21 +80,23 @@ def _create_cocip_grid_source(t: datetime.datetime, flight_level: int) -> MetDat
         time=t,
     )
 
-def _create_cocip_grid_model(met: MetDataset, rad: MetDataset, aircraft_class: str) -> CocipGrid:
+
+def _create_cocip_grid_model(
+    met: MetDataset, rad: MetDataset, aircraft_class: str
+) -> CocipGrid:
     # TODO: set relevant parameters based on aircraft class
     # Logic for setting per-class parameters should probably live in pycontrails,
     # but doesn't exist yet
     return CocipGrid(
-        met=met,
-        rad=rad,
-        aircraft_performance=PSGrid(),
-        **PROVISIONAL_STATIC_PARAMS
+        met=met, rad=rad, aircraft_performance=PSGrid(), **PROVISIONAL_STATIC_PARAMS
     )
+
 
 def _fix_attrs(result: MetDataset) -> None:
     for key, value in result.data.attrs.items():
         if value is None:
             result.data.attrs[key] = "None"
+
 
 def _save_nc4(ds: xr.Dataset, sink_path: str) -> None:
     # Can only save as netcdf3 with file-like objects:
@@ -102,7 +108,7 @@ def _save_nc4(ds: xr.Dataset, sink_path: str) -> None:
         ds.to_netcdf(tmp.name, format="NETCDF4")
         fs = gcsfs.GCSFileSystem()
         fs.put(tmp.name, sink_path)
-    
+
 
 @app.route("/run", methods=["POST"])
 def run() -> tuple[str, int]:
@@ -116,7 +122,7 @@ def run() -> tuple[str, int]:
     The HRES ETL service is responsible for generating and publishing API Preprocessor jobs.
     """
     req = flask.request.get_json()  # noqa:F841
-
+    logger.info("call /run")
     # TODO: fetch job from subscription
     # TODO: init background daemon handling ack extension/lease management
     # TODO: extract job attributes from payload
@@ -150,15 +156,24 @@ def run() -> tuple[str, int]:
 
     # TODO: build cocip grid at 0.25deg x 0.25deg, export to gcs as netcdf file
     run_at = datetime.datetime.fromtimestamp(model_run_at, tz=datetime.timezone.utc)
-    pred_at = datetime.datetime.fromtimestamp(model_predicted_at, tz=datetime.timezone.utc)
-    max_age = min(datetime.timedelta(hours=max_max_age_hr), run_at + datetime.timedelta(hours=72) - pred_at)
+    pred_at = datetime.datetime.fromtimestamp(
+        model_predicted_at, tz=datetime.timezone.utc
+    )
+    max_age = min(
+        datetime.timedelta(hours=max_max_age_hr),
+        run_at + datetime.timedelta(hours=72) - pred_at,
+    )
     source = _create_cocip_grid_source(pred_at, flight_level)
-    met, rad = _load_met_rad(run_at)    # currently using 0.25 x 0.25 HRES data for ease of testing
+    met, rad = _load_met_rad(
+        run_at
+    )  # currently using 0.25 x 0.25 HRES data for ease of testing
     model = _create_cocip_grid_model(met, rad, aircraft_class)
     result = model.eval(source, max_age=max_age)
-    _fix_attrs(result)      # serialization as netcdf fails if any attributes are None,
-                            # so replace None with "None" in attributes
-    _save_nc4(result.data, grids_gcs_sink_path)       # complicated---see comments in helper function
+    _fix_attrs(result)  # serialization as netcdf fails if any attributes are None,
+    # so replace None with "None" in attributes
+    _save_nc4(
+        result.data, grids_gcs_sink_path
+    )  # complicated---see comments in helper function
 
     # TODO: build polygon files for each threshold, export gcs as geojson
 

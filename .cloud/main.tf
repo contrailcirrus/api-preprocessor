@@ -4,6 +4,10 @@ provider "google" {
   zone    = "us-east1-b"
 }
 
+provider "kubernetes" {
+  config_path    = "~/.kube/config"
+}
+
 terraform {
  backend "gcs" {
    bucket  = "contrails-301217-infrastructure"
