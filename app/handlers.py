@@ -46,7 +46,7 @@ class CocipHandler:
         met_level_buffer=(20, 20),
     )
 
-    REGIONS_THRESHOLDS = [500000000, 5000000, 50000]
+    REGIONS_THRESHOLDS = [5e8, 1e8, 1e7]
     MAX_AGE_HR = 12
 
     def __init__(
