@@ -57,15 +57,21 @@ class CocipHandler:
         regions_sink_path: str,
     ):
         """
-        :param hres_source_path: fully-qualified base path reading HRES zarr store input
-                                 e.g. 'gs://contrails-301217-ecmwf-hres-forecast-v2-short-term'
-        :param job: the API Preprocessor job to be processed by the handler
-        :param grids_sink_path: fully-qualified base path for writing cocip grid netcdf output
-                               e.g. 'gs://contrails-301217-api-preprocessor-dev/grids'
-        :param regions_sink_path: fully-qualified base path for writing cocip regions geojson output
-                               e.g. 'gs://contrails-301217-api-preprocessor-dev/regions'
+        Parameters
+        ----------
+        hres_source_path
+            fully-qualified base path reading HRES zarr store input
+            e.g. 'gs://contrails-301217-ecmwf-hres-forecast-v2-short-term'
+        job
+            the API Preprocessor job to be processed by the handler
+        grids_sink_path
+            fully-qualified base path for writing cocip grid netcdf output
+            e.g. 'gs://contrails-301217-api-preprocessor-dev/grids'
+        regions_sink_path
+            fully-qualified base path for writing cocip regions geojson output
+            e.g. 'gs://contrails-301217-api-preprocessor-dev/regions'
         """
-        self._hres_dataset: Union[None, tuple[MetDataset, MetDataset]] = None
+        self._hres_datasets: Union[None, tuple[MetDataset, MetDataset]] = None
         self._cocip_grid: Union[None, MetDataset] = None
 
         self.hres_source_path = hres_source_path
@@ -98,13 +104,13 @@ class CocipHandler:
         """
         Extract hres inputs from zarr store, load to memory.
         """
-        self._hres_dataset = self._load_met_rad(self._run_at_dt, self.hres_source_path)
+        self._hres_datasets = self._load_met_rad(self._run_at_dt, self.hres_source_path)
 
     def compute(self):
         """
         Compute the cocip grid.
         """
-        if not self._hres_dataset:
+        if not self._hres_datasets:
             raise ValueError(
                 "missing input data. please run read() to load input data."
             )
@@ -114,7 +120,7 @@ class CocipHandler:
             self.job.flight_level,
         )
         model = self._create_cocip_grid_model(
-            *self._hres_dataset, self.job.aircraft_class
+            *self._hres_datasets, self.job.aircraft_class
         )
         result = model.eval(source, max_age=self._max_age)
         self._fix_attrs(
