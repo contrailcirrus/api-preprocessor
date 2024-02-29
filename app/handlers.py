@@ -270,7 +270,6 @@ class JobSubscriptionHandler:
                 "connection will remain open until close()."
             )
 
-        msg = None
         while True:
             logger.info(f"fetching message from {self.subscription}")
             resp = self._client.pull(
@@ -291,9 +290,7 @@ class JobSubscriptionHandler:
                 f"published_time: {msg.message.publish_time}, "
                 f"message_id: {msg.message.message_id}"
             )
-            break
-
-        return ApiPreprocessorJob.from_utf8_json(msg.message.data)
+            return ApiPreprocessorJob.from_utf8_json(msg.message.data)
 
     def ack(self):
         """
