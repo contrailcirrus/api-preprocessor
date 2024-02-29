@@ -1,17 +1,11 @@
 """Entrypoint for the (internal) API hosting API Preprocessor methods."""
 
-import flask
-
-from app.schemas import ApiPreprocessorJob
-from app.handlers import CocipHandler
-
+from app.handlers import CocipHandler, JobSubscriptionHandler
+import app.environment as env
 from app.log import logger
 
-app = flask.Flask(__name__)
 
-
-@app.route("/run", methods=["POST"])
-def run() -> tuple[str, int]:
+def run():
     """
     Generate grids and regions data product,
     and write it to a location backing the /v1 public API.
@@ -21,23 +15,30 @@ def run() -> tuple[str, int]:
 
     The HRES ETL service is responsible for generating and publishing API Preprocessor jobs.
     """
-    req = flask.request.get_json()  # noqa:F841
-    logger.info("call /run")
-    # TODO: fetch job from subscription
-    # TODO: init background daemon handling ack extension/lease management
-    # TODO: extract job attributes from payload
+    logger.info("initiating run()")
+    with JobSubscriptionHandler(env.API_PREPROCESSOR_SUBSCRIPTION_ID) as job_handler:
+        job = job_handler.fetch()
+        job_handler.ack()
 
     # stubbed values
     # -------
-    job = ApiPreprocessorJob(
-        model_run_at=1708322400,
-        model_predicted_at=1708354800,
-        flight_level=300,
-        aircraft_class="default",
-    )
+    # job = ApiPreprocessorJob(
+    #    model_run_at=1708322400,
+    #    model_predicted_at=1708354800,
+    #    flight_level=300,
+    #    aircraft_class="default",
+    # )
 
+    # TEMPORARY
+    # lets sip off our queue for starters
+    from random import randint
+
+    if randint(0, 100) != 20:
+        return
+
+    logger.info(f"generating outputs for job. job: {job}")
     cocip_handler = CocipHandler(
-        "gs://contrails-301217-ecmwf-hres-forecast-v2-short-term",
+        "gs://contrails-301217-ecmwf-hres-forecast-v2-short-term-dev",
         job,
         "gs://contrails-301217-api-preprocessor-dev/grids",
         "gs://contrails-301217-api-preprocessor-dev/regions",
@@ -46,9 +47,12 @@ def run() -> tuple[str, int]:
     cocip_handler.compute()
     cocip_handler.write()
 
-    logger.info("processing of job complete.  message id: foobar")
-    return "success", 200
+    # TODO: move cocip work w/in job_handler context
+    #  add pubsub message ack after confirming successful data output write
+    logger.info(f"processing of job complete. job: {job}")
 
 
 if __name__ == "__main__":
-    app.run(threaded=True, host="0.0.0.0", port=8080)
+    logger.info("starting api-preprocessor instance")
+    while True:
+        run()
