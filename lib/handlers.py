@@ -4,8 +4,8 @@ Application handlers.
 
 from typing import Union
 
-from app.schemas import ApiPreprocessorJob
-from app.log import logger
+from lib.schemas import ApiPreprocessorJob
+from lib.log import logger
 from datetime import datetime, timezone, timedelta
 
 from google.api_core import retry

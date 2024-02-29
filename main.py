@@ -1,8 +1,8 @@
 """Entrypoint for the (internal) API hosting API Preprocessor methods."""
 
-from app.handlers import CocipHandler, JobSubscriptionHandler
-import app.environment as env
-from app.log import logger
+from lib.handlers import CocipHandler, JobSubscriptionHandler
+import lib.environment as env
+from lib.log import logger
 
 
 def run():

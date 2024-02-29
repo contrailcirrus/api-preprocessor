@@ -5,7 +5,7 @@ Module for configuring and managing application-wide logger.
 import logging
 import traceback
 
-import app.environment as env
+import lib.environment as env
 
 
 def format_traceback():

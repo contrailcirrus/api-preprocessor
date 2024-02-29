@@ -34,10 +34,11 @@ COPY --from=venv /usr/src/.venv/ /usr/src/.venv/
 ENV PATH /usr/src/.venv/bin:$PATH
 
 # Copy the application code
-WORKDIR /app
-COPY app app
+WORKDIR /
+COPY lib lib
+COPY main.py .
 
 ENV VERSION v0.0.0-dev.0
 
 
-CMD exec hypercorn app.main:app --bind :$PORT
+CMD ["python3", "main.py"]
