@@ -58,3 +58,16 @@ class ApiPreprocessorJob:
         """
         js = json.dumps(self.__dict__)
         return js.encode("utf-8")
+
+    @staticmethod
+    def from_utf8_json(blob: bytes):
+        """
+        Takes a utf8 json blob and marshals to an instance of ApiPreprocessorJob.
+
+        Parameters
+        ----------
+        blob
+            json blob with required ApiPreprocessorJob fields, in utf8
+            e.g. b'{"model_run_at": 1709143200, "model_predicted_at": 1709150400, "flight_level": 290, "aircraft_class": "default"}'
+        """
+        return ApiPreprocessorJob(**json.loads(blob))

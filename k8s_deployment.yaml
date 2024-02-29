@@ -20,8 +20,6 @@ spec:
       containers:
       - name: api-preprocessor-dev
         image: us-east1-docker.pkg.dev/contrails-301217/api-preprocessor/api-preprocessor-dev:latest
-        ports:
-        - containerPort: 8080
         env:
           - name: SINK_PATH
             value: "gs://contrails-301217-foobar"

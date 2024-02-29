@@ -37,12 +37,7 @@ ENV PATH /usr/src/.venv/bin:$PATH
 WORKDIR /app
 COPY app app
 
-# https://cloud.google.com/run/docs/configuring/containers
-# https://cloud.google.com/run/docs/container-contract
-# These are set in cloudbuild.yaml and overwritten by CloudRun at runtime
-ENV PORT 8080
 ENV VERSION v0.0.0-dev.0
 
-EXPOSE $PORT
 
 CMD exec hypercorn app.main:app --bind :$PORT
