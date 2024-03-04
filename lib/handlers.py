@@ -264,7 +264,9 @@ class JobSubscriptionHandler:
         """
         Extends the ack deadline for the currently outstanding message.
         """
+        logger.info("starting ack lease management worker...")
         while not self._kill_ack_manager:
+            time.sleep(self.ack_extension_sec // 2)
             if self._ack_id:
                 logger.info(
                     f"extending ack deadline on ack_id: {self._ack_id[0:-40]}..."
@@ -282,7 +284,6 @@ class JobSubscriptionHandler:
                         f"failed to extend ack deadline for message. "
                         f"traceback: {format_traceback()}"
                     )
-            time.sleep(self.ack_extension_sec // 2)
 
     def fetch(self) -> ApiPreprocessorJob:
         """
