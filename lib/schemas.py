@@ -1,7 +1,6 @@
 """ Data Object Models & Schemas"""
 
-import dataclasses
-from dataclasses import dataclass
+from dataclasses import dataclass, asdict
 import json
 from typing import Literal
 
@@ -57,7 +56,7 @@ class ApiPreprocessorJob:
         """
         Builds a utf-8 encoded JSON blob from the class' attributes.
         """
-        js = json.dumps(dataclasses.asdict(self))
+        js = json.dumps(asdict(self))
         return js.encode("utf-8")
 
     @staticmethod
