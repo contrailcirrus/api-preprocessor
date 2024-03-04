@@ -269,7 +269,7 @@ class JobSubscriptionHandler:
             time.sleep(self.ack_extension_sec // 2)
             if self._ack_id:
                 logger.info(
-                    f"extending ack deadline on ack_id: {self._ack_id[0:-40]}..."
+                    f"extending ack deadline on ack_id: {self._ack_id[0:-150]}..."
                 )
                 try:
                     self._client.modify_ack_deadline(
@@ -284,6 +284,7 @@ class JobSubscriptionHandler:
                         f"failed to extend ack deadline for message. "
                         f"traceback: {format_traceback()}"
                     )
+        logger.info("terminated ack lease management worker")
 
     def fetch(self) -> ApiPreprocessorJob:
         """
@@ -346,5 +347,4 @@ class JobSubscriptionHandler:
         Close pubsub client connection.
         """
         self._kill_ack_manager = True
-        self._ack_manager.join()
         self._client.close()
