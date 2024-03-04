@@ -1,19 +1,44 @@
-resource "kubernetes_namespace" "api_preprocessor" {
+resource "kubernetes_namespace" "api_preprocessor-namespace-dev" {
   metadata {
     annotations = {
-      name = "api-preprocessor"
+      name = "api-preprocessor-dev"
     }
     labels = {
-      name = "api-preprocessor"
+      name = "api-preprocessor-dev"
     }
-    name = "api-preprocessor"
+    name = "api-preprocessor-dev"
   }
 }
 
-resource "kubernetes_service_account" "api-preprocessor-k8s-default-sa" {
+resource "kubernetes_namespace" "api_preprocessor-namespace-prod" {
+  metadata {
+    annotations = {
+      name = "api-preprocessor-prod"
+    }
+    labels = {
+      name = "api-preprocessor-prod"
+    }
+    name = "api-preprocessor-prod"
+  }
+}
+
+resource "kubernetes_service_account" "api-preprocessor-k8s-default-sa-dev" {
   metadata {
     name = "api-preprocessor-k8s-default-sa"
-    namespace = kubernetes_namespace.api_preprocessor.id
+    namespace = kubernetes_namespace.api_preprocessor-namespace-dev.id
+    annotations = {
+      "iam.gke.io/gcp-service-account" = google_service_account.api_preprocessor_sa.email
+    }
+  }
+  depends_on = [
+    google_service_account.api_preprocessor_sa,
+  ]
+}
+
+resource "kubernetes_service_account" "api-preprocessor-k8s-default-sa-prod" {
+  metadata {
+    name = "api-preprocessor-k8s-default-sa"
+    namespace = kubernetes_namespace.api_preprocessor-namespace-prod.id
     annotations = {
       "iam.gke.io/gcp-service-account" = google_service_account.api_preprocessor_sa.email
     }
