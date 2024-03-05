@@ -45,10 +45,12 @@ resource "google_service_account_iam_binding" "k8s_sa_to_api_preprocessor_sa_bin
   role               = "roles/iam.workloadIdentityUser"
 
   members = [
-    "serviceAccount:contrails-301217.svc.id.goog[${kubernetes_service_account.api-preprocessor-k8s-default-sa.id}]",
+    "serviceAccount:contrails-301217.svc.id.goog[${kubernetes_service_account.api-preprocessor-k8s-default-sa-dev.id}]",
+    "serviceAccount:contrails-301217.svc.id.goog[${kubernetes_service_account.api-preprocessor-k8s-default-sa-prod.id}]",
   ]
   depends_on = [
-    kubernetes_service_account.api-preprocessor-k8s-default-sa,
+    kubernetes_service_account.api-preprocessor-k8s-default-sa-dev,
+    kubernetes_service_account.api-preprocessor-k8s-default-sa-prod,
     google_service_account.api_preprocessor_sa,
   ]
 }
