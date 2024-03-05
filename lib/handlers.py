@@ -2,10 +2,11 @@
 Application handlers.
 """
 
+import time
 from typing import Union
 
 from lib.schemas import ApiPreprocessorJob
-from lib.log import logger
+from lib.log import logger, format_traceback
 from datetime import datetime, timezone, timedelta
 
 from google.api_core import retry
@@ -23,6 +24,7 @@ import numpy as np
 import xarray as xr
 import gcsfs
 import tempfile
+from threading import Thread
 import warnings
 
 
@@ -225,6 +227,7 @@ class JobSubscriptionHandler:
 
     # the number of seconds the subscriber client will hang, waiting for available messages
     MSG_WAIT_TIME_SEC = 60.0
+    ACK_EXTENSION_SEC = 300.0
 
     def __init__(self, subscription: str):
         """
@@ -233,10 +236,16 @@ class JobSubscriptionHandler:
         subscription
             The fully-qualified URI for the pubsub subscription.
             e.g. 'projects/contrails-301217/subscriptions/api-preprocessor-sub-dev'
+        ack_extension_sec
+            This handler will indefinitely extend the active message's ack deadline by
+            ack_extension_sec until self.ack() is called
         """
         self.subscription = subscription
         self._client = None
         self._ack_id: Union[None, str] = None
+        self._kill_ack_manager = False
+        self._ack_manager = Thread(target=self._ack_management_worker, daemon=True)
+        self._ack_manager.start()
 
     def __enter__(self):
         """
@@ -251,6 +260,32 @@ class JobSubscriptionHandler:
         """
         self.close()
 
+    def _ack_management_worker(self):
+        """
+        Extends the ack deadline for the currently outstanding message.
+        """
+        logger.info("starting ack lease management worker...")
+        while not self._kill_ack_manager:
+            time.sleep(self.ACK_EXTENSION_SEC // 2)
+            if self._ack_id:
+                logger.info(
+                    f"extending ack deadline on ack_id: {self._ack_id[0:-150]}..."
+                )
+                try:
+                    self._client.modify_ack_deadline(
+                        request={
+                            "subscription": self.subscription,
+                            "ack_ids": [self._ack_id],
+                            "ack_deadline_seconds": self.ACK_EXTENSION_SEC,
+                        }
+                    )
+                except Exception:
+                    logger.error(
+                        f"failed to extend ack deadline for message. "
+                        f"traceback: {format_traceback()}"
+                    )
+        logger.info("terminated ack lease management worker")
+
     def fetch(self) -> ApiPreprocessorJob:
         """
         Fetch a message from the subscription queue.
@@ -262,7 +297,6 @@ class JobSubscriptionHandler:
         str
             The dequeued message from the pubsub subscription.
         """
-        # TODO: init background daemon handling ack extension/lease management
         if not self._client:
             self._client = pubsub_v1.SubscriberClient()
             warnings.warn(
@@ -312,4 +346,5 @@ class JobSubscriptionHandler:
         """
         Close pubsub client connection.
         """
+        self._kill_ack_manager = True
         self._client.close()
