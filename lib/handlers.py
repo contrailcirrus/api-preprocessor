@@ -227,8 +227,9 @@ class JobSubscriptionHandler:
 
     # the number of seconds the subscriber client will hang, waiting for available messages
     MSG_WAIT_TIME_SEC = 60.0
+    ACK_EXTENSION_SEC = 300.0
 
-    def __init__(self, subscription: str, ack_extension_sec: int):
+    def __init__(self, subscription: str):
         """
         Parameters
         ----------
@@ -240,7 +241,6 @@ class JobSubscriptionHandler:
             ack_extension_sec until self.ack() is called
         """
         self.subscription = subscription
-        self.ack_extension_sec = ack_extension_sec
         self._client = None
         self._ack_id: Union[None, str] = None
         self._kill_ack_manager = False
@@ -266,7 +266,7 @@ class JobSubscriptionHandler:
         """
         logger.info("starting ack lease management worker...")
         while not self._kill_ack_manager:
-            time.sleep(self.ack_extension_sec // 2)
+            time.sleep(self.ACK_EXTENSION_SEC // 2)
             if self._ack_id:
                 logger.info(
                     f"extending ack deadline on ack_id: {self._ack_id[0:-150]}..."
@@ -276,7 +276,7 @@ class JobSubscriptionHandler:
                         request={
                             "subscription": self.subscription,
                             "ack_ids": [self._ack_id],
-                            "ack_deadline_seconds": self.ack_extension_sec,
+                            "ack_deadline_seconds": self.ACK_EXTENSION_SEC,
                         }
                     )
                 except Exception:
