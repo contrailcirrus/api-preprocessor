@@ -11,7 +11,7 @@ from datetime import datetime, timezone, timedelta
 
 from google.api_core import retry
 from google.cloud import pubsub_v1
-from pycontrails import MetDataset
+from pycontrails import MetDataset, MetDataArray
 from pycontrails.models.cocipgrid import CocipGrid
 from pycontrails.models.ps_model import PSGrid
 from pycontrails.models.humidity_scaling import (
@@ -24,6 +24,7 @@ import numpy as np
 import xarray as xr
 import gcsfs
 import tempfile
+import geojson
 from threading import Thread
 import warnings
 
@@ -79,6 +80,7 @@ class CocipHandler:
         """
         self._hres_datasets: Union[None, tuple[MetDataset, MetDataset]] = None
         self._cocip_grid: Union[None, MetDataset] = None
+        self._polygons: Union[None, list[geojson.FeatureCollection]] = None
 
         self.hres_source_path = hres_source_path
         self.job = job
@@ -134,6 +136,12 @@ class CocipHandler:
         )  # serialization as netcdf fails if any attributes are None,
         self._cocip_grid = result
 
+        polys = [
+            self._build_polygons(result["ef_per_m"], thres)
+            for thres in self.REGIONS_THRESHOLDS
+        ]
+        self._polygons = polys
+
     def write(self):
         """
         Write the generated data products to storage.
@@ -142,11 +150,17 @@ class CocipHandler:
             raise ValueError(
                 "missing cocip grid data. please run compute() to generate model output data."
             )
+        if not self._polygons:
+            raise ValueError(
+                "missing polygon data. please run compute() to generate polygons"
+            )
 
-        # TODO: generate geojson regions/polygons, and write to file
         self._save_nc4(
             self._cocip_grid.data, self.grids_gcs_sink_path
         )  # complicated---see comments in helper function
+
+        for poly, path in zip(self._polygons, self._regions_gcs_sink_path):
+            self._save_geojson(poly, path)
 
     @staticmethod
     def _load_met_rad(
@@ -218,6 +232,34 @@ class CocipHandler:
             ds.to_netcdf(tmp.name, format="NETCDF4")
             fs = gcsfs.GCSFileSystem()
             fs.put(tmp.name, sink_path)
+
+    @staticmethod
+    def _build_polygons(ef_per_m: MetDataArray, threshold: int) -> geojson.FeatureCollection:
+        # parameters for building polygons are defaults from /v0 API; see
+        # https://github.com/contrailcirrus/contrails-api/blob/bd8b0a8a858be2852346c35316c7cdc96ac65a2f/app/schemas.py
+        # https://github.com/contrailcirrus/contrails-api/blob/bd8b0a8a858be2852346c35316c7cdc96ac65a2f/app/settings.py
+        # https://github.com/contrailcirrus/contrails-api/blob/bd8b0a8a858be2852346c35316c7cdc96ac65a2f/app/v0/grid.py
+        #
+        # For descriptions of parameters, see
+        # https://py.contrails.org/api/pycontrails.core.met.html#pycontrails.core.met.MetDataArray.to_polygon_feature
+        params = dict(
+            fill_value=0.0,         # grid.py L602
+            iso_value = threshold,  # polygon threshold set by `threshold` parameter
+            min_area=0.3,           # schemas.py L1396, used to index `POLYGON_MIN_AREA` in settings.py
+            epsilon=0.05,           # schemas.py L1396, used to index `POLYGON_EPSILON` in settings.py
+            precision=2,            # `POLYGON_PRECISION` in settings.py
+            interiors=True,         # schemas.py L1378
+            convex_hull=False,      # schemas.py L1417
+            include_altitude=True,  # grid.py L601
+        )
+        poly = ef_per_m.to_polygon_feature(**params)
+        return geojson.FeatureCollection(poly)
+    
+    @staticmethod
+    def _save_geojson(fc: geojson.FeatureCollection, sink_path: str) -> None:
+        fs = gcsfs.GCSFileSystem()
+        with fs.open(sink_path, "w") as f:
+            geojson.dump(fc, f)
 
 
 class JobSubscriptionHandler:
