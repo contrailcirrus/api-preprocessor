@@ -159,7 +159,7 @@ class CocipHandler:
             self._cocip_grid.data, self.grids_gcs_sink_path
         )  # complicated---see comments in helper function
 
-        for poly, path in zip(self._polygons, self._regions_gcs_sink_path):
+        for poly, path in zip(self._polygons, self.regions_gcs_sink_path):
             self._save_geojson(poly, path)
 
     @staticmethod
