@@ -127,14 +127,17 @@ class CocipHandler:
             self._predicted_at_dt,
             self.job.flight_level,
         )
+        logger.info("composing cocip grid model.")
         model = self._create_cocip_grid_model(
             *self._hres_datasets, self.job.aircraft_class
         )
+        logger.info("evaluating cocip grid model.")
         result = model.eval(source, max_age=self._max_age)
         self._fix_attrs(
             result
         )  # serialization as netcdf fails if any attributes are None,
         self._cocip_grid = result
+        logger.info("done evaluating cocip grid model.")
 
         polys = [
             self._build_polygons(result["ef_per_m"], thres)
@@ -171,14 +174,18 @@ class CocipHandler:
         # gs://contrails-301217-ecmwf-hres-forecast-v2-short-term-dev
         forecast = t.strftime("%Y%m%d%H")
 
-        pl = xr.open_zarr(f"{hres_source_path}/{forecast}/pl.zarr/")
+        pl_fp = f"{hres_source_path}/{forecast}/pl.zarr/"
+        logger.info(f"opening pressure level zarr file: {pl_fp}")
+        pl = xr.open_zarr(pl_fp)
         met = MetDataset(pl, provider="ECMWF", dataset="HRES", product="forecast")
         variables = (
             v[0] if isinstance(v, tuple) else v for v in CocipGrid.met_variables
         )
         met.standardize_variables(variables)
 
-        sl = xr.open_zarr(f"{hres_source_path}/{forecast}/sl.zarr/")
+        sl_fp = f"{hres_source_path}/{forecast}/sl.zarr/"
+        sl = xr.open_zarr(sl_fp)
+        logger.info(f"opening surface level zarr file: {sl_fp}")
         rad = MetDataset(sl, provider="ECMWF", dataset="HRES", product="forecast")
         variables = (
             v[0] if isinstance(v, tuple) else v for v in CocipGrid.rad_variables
@@ -254,6 +261,7 @@ class CocipHandler:
             convex_hull=False,  # schemas.py L1417
             include_altitude=True,  # grid.py L601
         )
+        logger.info(f"building polygon for threshold: {threshold}")
         poly = ef_per_m.to_polygon_feature(**params)
         return geojson.FeatureCollection(poly)
 
