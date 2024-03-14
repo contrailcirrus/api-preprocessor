@@ -7,6 +7,7 @@ Required environment variables should be imported first, followed by optional en
 
 import os
 
+SOURCE_PATH = os.environ["SOURCE_PATH"]
 SINK_PATH = os.environ["SINK_PATH"]
 API_PREPROCESSOR_SUBSCRIPTION_ID = os.environ["API_PREPROCESSOR_SUBSCRIPTION_ID"]
 

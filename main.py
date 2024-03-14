@@ -27,21 +27,12 @@ def run():
         #    flight_level=300,
         #    aircraft_class="default",
         # )
-
-        # TEMPORARY
-        # lets sip off our queue for starters
-        from random import randint
-
-        if randint(0, 100) != 20:
-            job_handler.ack()
-            return
-
         logger.info(f"generating outputs for job. job: {job}")
         cocip_handler = CocipHandler(
-            "gs://contrails-301217-ecmwf-hres-forecast-v2-short-term-dev",
+            env.SOURCE_PATH,
             job,
-            "gs://contrails-301217-api-preprocessor-dev/grids",
-            "gs://contrails-301217-api-preprocessor-dev/regions",
+            f"{env.SINK_PATH}/grids",
+            f"{env.SINK_PATH}/regions",
         )
         cocip_handler.read()
         cocip_handler.compute()
