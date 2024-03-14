@@ -11,4 +11,11 @@ run_coarse:
 	export SOURCE_PATH=$(SOURCE_PATH_COARSE) && \
 	export SINK_PATH=$(SINK_PATH) && \
 	export API_PREPROCESSOR_SUBSCRIPTION_ID=$(API_PREPROCESSOR_SUBSCRIPTION_ID) && \
-	python3 main.py
+	python3 main.py >> ~/coarse_log.txt
+
+run_fine:
+	export LOG_LEVEL=$(LOG_LEVEL) && \
+	export SOURCE_PATH=$(SOURCE_PATH_COARSE) && \
+	export SINK_PATH=$(SINK_PATH) && \
+	export API_PREPROCESSOR_SUBSCRIPTION_ID=$(API_PREPROCESSOR_SUBSCRIPTION_ID) && \
+	python3 main.py >> ~/fine_log.txt

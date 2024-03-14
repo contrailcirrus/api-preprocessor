@@ -20,11 +20,20 @@ def run():
     with JobSubscriptionHandler(env.API_PREPROCESSOR_SUBSCRIPTION_ID) as _:
         # job = job_handler.fetch()
 
+        if "coarse" in env.SOURCE_PATH:
+            # target zarr store is 2024031218, chunked at -1 on flight_level
+            model_run_at = 1710266400  # 2024-03-12T18
+            model_predicted_at = 1710270000  # 2024-03-12T19
+        elif "fine" in env.SOURCE_PATH:
+            # target zarr store is /2024031412, chunked at 1 on flight_level
+            model_run_at = 1710439200  # 2024-03-14T12
+            model_predicted_at = 1710442800  # 2024-03-14T13
+
         # stubbed values
         # -------
         job = ApiPreprocessorJob(
-            model_run_at=1710266400,  # 2024-03-12T18
-            model_predicted_at=1710270000,  # 2024-03-12T19
+            model_run_at=model_run_at,  # 2024-03-12T18
+            model_predicted_at=model_predicted_at,  # 2024-03-12T19
             flight_level=300,
             aircraft_class="default",
         )
