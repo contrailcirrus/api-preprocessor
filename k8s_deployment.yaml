@@ -1,28 +1,30 @@
 # test deployment for k8s
-# kubectl apply -f k8s_deployment.yaml -n api-preprocessor
+# kubectl apply -f k8s_deployment.yaml -n api-preprocessor-dev
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: api-preprocessor-dev
+  name: api-preprocessor
   labels:
-    app: api-preprocessor-dev
+    app: api-preprocessor
 spec:
   replicas: 1
   selector:
     matchLabels:
-      app: api-preprocessor-dev
+      app: api-preprocessor
   template:
     metadata:
       labels:
-        app: api-preprocessor-dev
+        app: api-preprocessor
     spec:
       serviceAccountName: api-preprocessor-k8s-default-sa
       containers:
-      - name: api-preprocessor-dev
+      - name: api-preprocessor
         image: us-east1-docker.pkg.dev/contrails-301217/api-preprocessor/api-preprocessor-dev:latest
         env:
+          - name: SOURCE_PATH
+            value: "gs://contrails-301217-ecmwf-hres-forecast-v2-short-term-dev"
           - name: SINK_PATH
-            value: "gs://contrails-301217-foobar"
+            value: "gs://contrails-301217-api-preprocessor-dev"
           - name: API_PREPROCESSOR_SUBSCRIPTION_ID
             value: "projects/contrails-301217/subscriptions/api-preprocessor-sub-dev"
           - name: LOG_LEVEL
