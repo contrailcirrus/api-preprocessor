@@ -23,8 +23,8 @@ def run():
         # stubbed values
         # -------
         job = ApiPreprocessorJob(
-            model_run_at=1710244800,  # 2024-03-12T12
-            model_predicted_at=1710248400,  # 2024-03-12T13
+            model_run_at=1710266400,  # 2024-03-12T18
+            model_predicted_at=1710270000,  # 2024-03-12T19
             flight_level=300,
             aircraft_class="default",
         )
