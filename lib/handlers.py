@@ -234,7 +234,9 @@ class CocipHandler:
             fs.put(tmp.name, sink_path)
 
     @staticmethod
-    def _build_polygons(ef_per_m: MetDataArray, threshold: int) -> geojson.FeatureCollection:
+    def _build_polygons(
+        ef_per_m: MetDataArray, threshold: int
+    ) -> geojson.FeatureCollection:
         # parameters for building polygons are defaults from /v0 API; see
         # https://github.com/contrailcirrus/contrails-api/blob/bd8b0a8a858be2852346c35316c7cdc96ac65a2f/app/schemas.py
         # https://github.com/contrailcirrus/contrails-api/blob/bd8b0a8a858be2852346c35316c7cdc96ac65a2f/app/settings.py
@@ -243,18 +245,18 @@ class CocipHandler:
         # For descriptions of parameters, see
         # https://py.contrails.org/api/pycontrails.core.met.html#pycontrails.core.met.MetDataArray.to_polygon_feature
         params = dict(
-            fill_value=0.0,         # grid.py L602
-            iso_value = threshold,  # polygon threshold set by `threshold` parameter
-            min_area=0.3,           # schemas.py L1396, used to index `POLYGON_MIN_AREA` in settings.py
-            epsilon=0.05,           # schemas.py L1396, used to index `POLYGON_EPSILON` in settings.py
-            precision=2,            # `POLYGON_PRECISION` in settings.py
-            interiors=True,         # schemas.py L1378
-            convex_hull=False,      # schemas.py L1417
+            fill_value=0.0,  # grid.py L602
+            iso_value=threshold,  # polygon threshold set by `threshold` parameter
+            min_area=0.3,  # schemas.py L1396, used to index `POLYGON_MIN_AREA` in settings.py
+            epsilon=0.05,  # schemas.py L1396, used to index `POLYGON_EPSILON` in settings.py
+            precision=2,  # `POLYGON_PRECISION` in settings.py
+            interiors=True,  # schemas.py L1378
+            convex_hull=False,  # schemas.py L1417
             include_altitude=True,  # grid.py L601
         )
         poly = ef_per_m.to_polygon_feature(**params)
         return geojson.FeatureCollection(poly)
-    
+
     @staticmethod
     def _save_geojson(fc: geojson.FeatureCollection, sink_path: str) -> None:
         fs = gcsfs.GCSFileSystem()
@@ -269,7 +271,7 @@ class JobSubscriptionHandler:
 
     # the number of seconds the subscriber client will hang, waiting for available messages
     MSG_WAIT_TIME_SEC = 60.0
-    ACK_EXTENSION_SEC = 300.0
+    ACK_EXTENSION_SEC: int = 300
 
     def __init__(self, subscription: str):
         """
