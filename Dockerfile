@@ -25,6 +25,9 @@ RUN pipenv sync
 # Use the official slim Python image.
 FROM python:${PYTHON_VERSION}-slim AS prod
 
+# graphics libs for running cocip polygon gen
+# RUN apt-get update && apt-get install -y libgl1
+
 # Allow statements and log messages to immediately appear in the Knative logs
 ENV PYTHONUNBUFFERED 1
 
