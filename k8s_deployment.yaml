@@ -7,7 +7,7 @@ metadata:
   labels:
     app: api-preprocessor
 spec:
-  replicas: 5
+  replicas: 40
   selector:
     matchLabels:
       app: api-preprocessor
@@ -31,10 +31,10 @@ spec:
             value: "INFO"
         resources:
           limits:
-            cpu: "2"
+            cpu: "1.8"
             ephemeral-storage: "1Gi"
-            memory: "4Gi"
+            memory: "3200Mi"
           requests:
-            cpu: "2"
+            cpu: "1.8"
             ephemeral-storage: "1Gi"
-            memory: "4Gi"
+            memory: "3200Mi"
