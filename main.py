@@ -46,7 +46,7 @@ def run():
         )
         cocip_handler.read()
         cocip_handler.compute()
-        cocip_handler.write()
+        # cocip_handler.write()
         # job_handler.ack()
     logger.info(f"processing of job complete. job: {job}")
 
