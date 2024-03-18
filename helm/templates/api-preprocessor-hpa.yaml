@@ -1,0 +1,22 @@
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: api-preprocessor-scaler
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: api-preprocessor
+  minReplicas: 1
+  maxReplicas: 50
+  metrics:
+  - external:
+      metric:
+       name: pubsub.googleapis.com|subscription|num_undelivered_messages
+       selector:
+         matchLabels:
+           resource.labels.subscription_id: {{ .Values.apiPreprocessorSubscriptionId | required ".Values.apiPreprocessorSubscriptionId is required" | quote }}
+      target:
+        type: AverageValue
+        averageValue: 5
+    type: External
