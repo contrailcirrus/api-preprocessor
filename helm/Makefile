@@ -5,7 +5,7 @@ deploy: --check-env
 		--set image=$(IMAGE) \
 		--set sourcePath=$(SOURCE_PATH) \
 		--set sinkPath=$(SINK_PATH) \
-		--set apiPreprocessorSubscriptionId=$(API_PREPROCESSOR_SUBSCRIPTION_ID) --dry-run
+		--set apiPreprocessorSubscriptionId=$(API_PREPROCESSOR_SUBSCRIPTION_ID)
 
 .PHONY: --check-env
 --check-env:
