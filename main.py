@@ -46,6 +46,6 @@ if __name__ == "__main__":
     try:
         while True:
             run()
-    except Exception as e:
-        logger.error("Unhandled exception:" + format_traceback(e))
+    except Exception:
+        logger.error("Unhandled exception:" + format_traceback())
         exit(1)
