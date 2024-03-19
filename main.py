@@ -15,6 +15,10 @@ def run():
 
     The HRES ETL service is responsible for generating and publishing API Preprocessor jobs.
     """
+    from random import randint
+
+    if randint(0, 50) != 20:
+        return
     logger.info("initiating run()")
     with JobSubscriptionHandler(env.API_PREPROCESSOR_SUBSCRIPTION_ID) as job_handler:
         job = job_handler.fetch()
