@@ -27,6 +27,20 @@ def run():
         #    flight_level=300,
         #    aircraft_class="default",
         # )
+
+        # we don't process jobs if there isn't enough forward-looking met data
+        prediction_wall = (
+            job.model_run_at + 72 * 60 * 60
+        )  # 72 hrs of fwd met data per model run
+        prediction_runway_hrs = (prediction_wall - job.model_predicted_at) / (60 * 60)
+        logger.info(
+            f"job should have {prediction_runway_hrs} of forward-looking hres data"
+        )
+        if prediction_runway_hrs < CocipHandler.MAX_AGE_HR:
+            logger.info(f"skipping. not enough met data for job: {job}")
+            job_handler.ack()
+            return
+
         logger.info(f"generating outputs for job. job: {job}")
         cocip_handler = CocipHandler(
             env.SOURCE_PATH,
