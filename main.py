@@ -34,7 +34,12 @@ def run():
         #    aircraft_class="default",
         # )
 
-        # we don't process jobs if there isn't enough forward-looking met data
+        # prune jobs where hres met data availability isn't sufficient
+        # -------
+        # The current (0.49.3) pycontrails implementation needs a buffer
+        # for differencing accumulated radiative fluxes.
+        # 1) job.model_predicted_at must be at least half an hour after job.model_run_at
+        # 2) prediction_runway_hrs must extend at least half an hour beyond CocipHandler.MAX_AGE_HR
         prediction_wall = (
             job.model_run_at + 72 * 60 * 60
         )  # 72 hrs of fwd met data per model run
@@ -42,7 +47,10 @@ def run():
         logger.info(
             f"job should have {prediction_runway_hrs} of forward-looking hres data"
         )
-        if prediction_runway_hrs < CocipHandler.MAX_AGE_HR:
+        if (
+            job.model_run_at == job.model_predicted_at
+            or prediction_runway_hrs < CocipHandler.MAX_AGE_HR + 0.5
+        ):
             logger.info(f"skipping. not enough met data for job: {job}")
             job_handler.ack()
             return
