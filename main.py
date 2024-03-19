@@ -2,7 +2,7 @@
 
 from lib.handlers import CocipHandler, JobSubscriptionHandler
 import lib.environment as env
-from lib.log import logger
+from lib.log import logger, format_traceback
 
 
 def run():
@@ -43,5 +43,9 @@ def run():
 
 if __name__ == "__main__":
     logger.info("starting api-preprocessor instance")
-    while True:
-        run()
+    try:
+        while True:
+            run()
+    except Exception:
+        logger.error("Unhandled exception:" + format_traceback())
+        exit(1)
