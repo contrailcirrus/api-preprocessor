@@ -1,5 +1,6 @@
 """Entrypoint for the (internal) API hosting API Preprocessor methods."""
 
+import sys
 from lib.handlers import CocipHandler, JobSubscriptionHandler
 import lib.environment as env
 from lib.log import logger, format_traceback
@@ -48,4 +49,4 @@ if __name__ == "__main__":
             run()
     except Exception:
         logger.error("Unhandled exception:" + format_traceback())
-        exit(1)
+        sys.exit(1)
