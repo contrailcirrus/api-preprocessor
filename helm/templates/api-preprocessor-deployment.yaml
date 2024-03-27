@@ -5,7 +5,7 @@ metadata:
   labels:
     app: api-preprocessor
 spec:
-  replicas: 40
+  replicas: 4
   selector:
     matchLabels:
       app: api-preprocessor
