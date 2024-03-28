@@ -48,7 +48,7 @@ def run():
             f"job should have {prediction_runway_hrs} of forward-looking hres data"
         )
         if (
-            job.model_run_at == job.model_predicted_at
+            job.model_predicted_at < job.model_run_at + 1800  # seconds in 0.5 hr
             or prediction_runway_hrs < CocipHandler.MAX_AGE_HR + 0.5
         ):
             logger.info(f"skipping. not enough met data for job: {job}")
