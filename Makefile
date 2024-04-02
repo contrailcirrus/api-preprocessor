@@ -27,7 +27,6 @@ benchmark_local:
 report_local:
 	mprof peak output/local.mprof
 	python3 analyze_stdout.py output/local.stdout
-	python3 analyze_stderr.py output/local.stderr
 
 benchmark_remote_no_dask:
 	export LOG_LEVEL=$(LOG_LEVEL) && \
@@ -41,3 +40,15 @@ report_remote_no_dask:
 	mprof peak output/remote_no_dask.mprof
 	python3 analyze_stdout.py output/remote_no_dask.stdout
 	python3 analyze_stderr.py output/remote_no_dask.stderr
+
+benchmark_local_no_dask:
+	export LOG_LEVEL=$(LOG_LEVEL) && \
+	export SOURCE_PATH=$(LOCAL_ZARR_PATH) && \
+	export SINK_PATH=$(SINK_PATH) && \
+	export API_PREPROCESSOR_SUBSCRIPTION_ID=$(API_PREPROCESSOR_SUBSCRIPTION_ID) && \
+	export NO_DASK=1 && \
+	mprof run --output output/local_no_dask.mprof python3 main.py > output/local_no_dask.stdout 2> output/local_no_dask.stderr
+
+report_local_no_dask:
+	mprof peak output/local_no_dask.mprof
+	python3 analyze_stdout.py output/local_no_dask.stdout
