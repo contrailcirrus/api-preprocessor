@@ -5,7 +5,6 @@ import lib.environment as env
 from lib.log import logger
 from lib.schemas import ApiPreprocessorJob
 
-
 def run():
     """
     Generate grids and regions data product,
@@ -19,21 +18,14 @@ def run():
     logger.info("initiating run()")
     with JobSubscriptionHandler(env.API_PREPROCESSOR_SUBSCRIPTION_ID) as _:
         # job = job_handler.fetch()
-
-        if "coarse" in env.SOURCE_PATH:
-            # target zarr store is 2024031218, chunked at -1 on flight_level
-            model_run_at = 1710266400  # 2024-03-12T18
-            model_predicted_at = 1710270000  # 2024-03-12T19
-        elif "fine" in env.SOURCE_PATH:
-            # target zarr store is /2024031412, chunked at 1 on flight_level
-            model_run_at = 1710439200  # 2024-03-14T12
-            model_predicted_at = 1710442800  # 2024-03-14T13
+        model_run_at = 1711929600  # 2024-04-01T00
+        model_predicted_at = 1711933200  # 2024-04-01T01
 
         # stubbed values
         # -------
         job = ApiPreprocessorJob(
-            model_run_at=model_run_at,  # 2024-03-12T18
-            model_predicted_at=model_predicted_at,  # 2024-03-12T19
+            model_run_at=model_run_at,
+            model_predicted_at=model_predicted_at,
             flight_level=300,
             aircraft_class="default",
         )
@@ -43,6 +35,7 @@ def run():
             job,
             f"{env.SINK_PATH}/grids",
             f"{env.SINK_PATH}/regions",
+            dask=not env.NO_DASK
         )
         cocip_handler.read()
         cocip_handler.compute()
@@ -53,5 +46,12 @@ def run():
 
 if __name__ == "__main__":
     logger.info("starting api-preprocessor instance")
-    while True:
-        run()
+    import time
+    import psutil
+    print("job:enter " + str(time.time()))
+    print(psutil.disk_io_counters())
+    print(psutil.net_io_counters())
+    run()
+    print(psutil.disk_io_counters())
+    print(psutil.net_io_counters())
+    print("job:exit " + str(time.time()))

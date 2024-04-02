@@ -12,3 +12,9 @@ __pycache__/
 
 # local environment
 .env
+
+# benchmark output
+output/
+
+# local zarr store
+data/

@@ -62,6 +62,7 @@ class CocipHandler:
         job: ApiPreprocessorJob,
         grids_sink_path: str,
         regions_sink_path: str,
+        dask: bool = True
     ):
         """
         Parameters
@@ -84,6 +85,7 @@ class CocipHandler:
 
         self.hres_source_path = hres_source_path
         self.job = job
+        self._dask = dask
 
         self._run_at_dt = datetime.fromtimestamp(job.model_run_at, tz=timezone.utc)
         self._predicted_at_dt = datetime.fromtimestamp(
@@ -112,7 +114,11 @@ class CocipHandler:
         """
         Extract hres inputs from zarr store, load to memory.
         """
-        self._hres_datasets = self._load_met_rad(self._run_at_dt, self.hres_source_path)
+        self._hres_datasets = self._load_met_rad(
+            self._run_at_dt,
+            self.hres_source_path, 
+            self._dask
+        )
 
     def compute(self):
         """
@@ -167,7 +173,7 @@ class CocipHandler:
 
     @staticmethod
     def _load_met_rad(
-        t: datetime, hres_source_path: str
+        t: datetime, hres_source_path: str, use_dask: bool
     ) -> tuple[MetDataset, MetDataset]:
         # NOTE: this bucket contains 0.25 x 0.25 degree HRES data
         # full-resolution (0.1 x 0.1 degree) HRES data is in
@@ -176,7 +182,10 @@ class CocipHandler:
 
         pl_fp = f"{hres_source_path}/{forecast}/pl.zarr/"
         logger.info(f"opening pressure level zarr file: {pl_fp}")
-        pl = xr.open_zarr(pl_fp)
+        if use_dask:
+            pl = xr.open_zarr(pl_fp)
+        else:
+            pl = xr.open_zarr(pl_fp, chunks=None)
         met = MetDataset(pl, provider="ECMWF", dataset="HRES", product="forecast")
         variables = (
             v[0] if isinstance(v, tuple) else v for v in CocipGrid.met_variables
@@ -184,7 +193,10 @@ class CocipHandler:
         met.standardize_variables(variables)
 
         sl_fp = f"{hres_source_path}/{forecast}/sl.zarr/"
-        sl = xr.open_zarr(sl_fp)
+        if use_dask:
+            sl = xr.open_zarr(sl_fp)
+        else:
+            sl = xr.open_zarr(sl_fp, chunks=None)
         logger.info(f"opening surface level zarr file: {sl_fp}")
         rad = MetDataset(sl, provider="ECMWF", dataset="HRES", product="forecast")
         variables = (

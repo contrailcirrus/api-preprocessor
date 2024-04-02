@@ -9,7 +9,6 @@ gcsfs = "==2023.12.2post1"
 google-cloud-pubsub = "==2.19.7"
 hypercorn = "==0.16.0"
 netcdf4 = "==1.6.5"
-pycontrails = "==0.49.3"
 zarr = "==2.16.1"
 opencv-python-headless = "==4.9.0.80"
 shapely = "==2.0.3"
@@ -19,6 +18,8 @@ geojson = "==3.1.0"
 ruff = "0.2.1"
 black = "24.2.0"
 pre-commit = "==3.6.0"
+psutil = "==5.9.8"
+pycontrails = {file = "../pycontrails", editable = true}
 
 [requires]
 python_version = "3.12"
