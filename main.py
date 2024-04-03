@@ -5,6 +5,7 @@ import sys
 from lib.handlers import CocipHandler, JobSubscriptionHandler
 import lib.environment as env
 from lib.log import logger, format_traceback
+from lib.exceptions import QueueEmptyError
 
 
 def run():
@@ -70,6 +71,9 @@ if __name__ == "__main__":
     try:
         while True:
             run()
+    except QueueEmptyError:
+        logger.info("No more messages. Exiting...")
+        sys.exit(0)
     except Exception:
         logger.error("Unhandled exception:" + format_traceback())
         sys.exit(1)

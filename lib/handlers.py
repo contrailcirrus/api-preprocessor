@@ -7,6 +7,7 @@ from typing import Union
 
 from lib.schemas import ApiPreprocessorJob
 from lib.log import logger, format_traceback
+from lib.exceptions import QueueEmptyError
 from datetime import datetime, timezone, timedelta
 
 from google.api_core import retry
@@ -341,9 +342,6 @@ class JobSubscriptionHandler:
     def fetch(self) -> ApiPreprocessorJob:
         """
         Fetch a message from the subscription queue.
-        This method will hang and wait until a message is available.
-        This method, in case of exception, will hang, backoff and retry indefinitely.
-
         Returns
         -------
         str
@@ -356,27 +354,27 @@ class JobSubscriptionHandler:
                 "connection will remain open until close()."
             )
 
-        while True:
-            logger.info(f"fetching message from {self.subscription}")
-            resp = self._client.pull(
-                request={"subscription": self.subscription, "max_messages": 1},
-                retry=retry.Retry(timeout=30.0),
-                timeout=self.MSG_WAIT_TIME_SEC,
-            )
+        logger.info(f"fetching message from {self.subscription}")
+        resp = self._client.pull(
+            request={"subscription": self.subscription, "max_messages": 1},
+            retry=retry.Retry(timeout=30.0),
+            timeout=self.MSG_WAIT_TIME_SEC,
+        )
 
-            if len(resp.received_messages) == 0:
-                # it is possible there are no messages available,
-                # or, pubsub returned zero when there are in fact some messages to fetch on retry
-                logger.info("zero messages received.")
-                continue
-            msg = resp.received_messages[0]
-            self._ack_id = msg.ack_id
-            logger.info(
-                f"received 1 message from {self.subscription}. "
-                f"published_time: {msg.message.publish_time}, "
-                f"message_id: {msg.message.message_id}"
-            )
-            return ApiPreprocessorJob.from_utf8_json(msg.message.data)
+        if len(resp.received_messages) == 0:
+            # it is possible there are no messages available,
+            # or, pubsub returned zero when there are in fact some messages to fetch on retry
+            logger.info("zero messages received.")
+            raise QueueEmptyError()
+
+        msg = resp.received_messages[0]
+        self._ack_id = msg.ack_id
+        logger.info(
+            f"received 1 message from {self.subscription}. "
+            f"published_time: {msg.message.publish_time}, "
+            f"message_id: {msg.message.message_id}"
+        )
+        return ApiPreprocessorJob.from_utf8_json(msg.message.data)
 
     def ack(self):
         """
