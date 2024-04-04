@@ -26,6 +26,7 @@ RUN pipenv sync
 COPY lib lib
 COPY main.py .
 
+ENV PATH /.venv/bin:$PATH
 ENV VERSION v0.0.0-dev.0
 
 
