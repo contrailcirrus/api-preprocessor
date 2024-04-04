@@ -2,10 +2,11 @@
 
 import sys
 
-from lib.handlers import CocipHandler, JobSubscriptionHandler
 import lib.environment as env
-from lib.log import logger, format_traceback
+from lib import utils
 from lib.exceptions import QueueEmptyError
+from lib.handlers import CocipHandler, JobSubscriptionHandler
+from lib.log import format_traceback, logger
 
 
 def run():
@@ -68,12 +69,15 @@ def run():
 
 if __name__ == "__main__":
     logger.info("starting api-preprocessor instance")
-    try:
-        while True:
+    sigterm_handler = utils.SigtermHandler()
+    while True:
+        if sigterm_handler.should_exit:
+            sys.exit(0)
+        try:
             run()
-    except QueueEmptyError:
-        logger.info("No more messages. Exiting...")
-        sys.exit(0)
-    except Exception:
-        logger.error("Unhandled exception:" + format_traceback())
-        sys.exit(1)
+        except QueueEmptyError:
+            logger.info("No more messages. Exiting...")
+            sys.exit(0)
+        except Exception:
+            logger.error("Unhandled exception:" + format_traceback())
+            sys.exit(1)
