@@ -7,6 +7,7 @@ name = "pypi"
 flask = "==3.0.2"
 gcsfs = "==2023.12.2post1"
 google-cloud-pubsub = "==2.19.7"
+google-crc32c = "==1.5.0"
 hypercorn = "==0.16.0"
 netcdf4 = "==1.6.5"
 pycontrails = "==0.49.3"
@@ -21,4 +22,4 @@ black = "24.2.0"
 pre-commit = "==3.6.0"
 
 [requires]
-python_version = "3.12"
+python_version = "3.11"
