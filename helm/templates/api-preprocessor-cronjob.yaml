@@ -14,7 +14,7 @@ spec:
     spec:
       activeDeadlineSeconds: 5400  # 1.5 hrs
       completions: 1
-      parallelism: 13
+      parallelism: 50
       backoffLimit: 10
       template:
         spec:
