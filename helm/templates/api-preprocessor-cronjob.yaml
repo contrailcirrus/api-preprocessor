@@ -23,7 +23,7 @@ spec:
           # terminationGracePeriodSeconds should be greater than the time to
           # perform a single job iteration. When a SIGTERM is received, the job
           # has this much time to gracefully exit before being killed.
-          terminationGracePeriodSeconds: 1800
+          terminationGracePeriodSeconds: 600 # max value accepted
           containers:
             - name: api-preprocessor
               image: {{ .Values.image | required ".Values.image is required" | quote }}
@@ -36,12 +36,23 @@ spec:
                   value: {{ .Values.apiPreprocessorSubscriptionId | required ".Values.apiPreprocessorSubscriptionId is required" | quote }}
                 - name: LOG_LEVEL
                   value: INFO
+              volumeMounts:
+                - mountPath: "/tmp"
+                  name: local-zarr-cache
               resources:
                 requests:
                   cpu: "2"
                   memory: "5000Mi"
-                  ephemeral-storage: "150Gi"
                 limits:
                   cpu: "2"
                   memory: "5000Mi"
-                  ephemeral-storage: "150Gi"
+          volumes:
+            - name: zarr-cache
+              ephemeral:
+                volumeClaimTemplate:
+                  spec:
+                    accessModes: [ "ReadWriteOnce" ]
+                    storageClassName: "generic"
+                    resources:
+                      requests:
+                        storage: "150Gi"
