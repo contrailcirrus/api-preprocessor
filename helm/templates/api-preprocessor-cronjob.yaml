@@ -38,7 +38,7 @@ spec:
                   value: INFO
               volumeMounts:
                 - mountPath: "/tmp"
-                  name: local-zarr-cache
+                  name: zarr-cache
               resources:
                 requests:
                   cpu: "2"
