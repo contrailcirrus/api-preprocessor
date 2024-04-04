@@ -20,6 +20,10 @@ spec:
         spec:
           restartPolicy: Never
           serviceAccountName: api-preprocessor-k8s-default-sa
+          # terminationGracePeriodSeconds should be greater than the time to
+          # perform a single job iteration. When a SIGTERM is received, the job
+          # has this much time to gracefully exit before being killed.
+          terminationGracePeriodSeconds: 1800
           containers:
             - name: api-preprocessor
               image: {{ .Values.image | required ".Values.image is required" | quote }}
