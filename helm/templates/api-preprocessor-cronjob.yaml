@@ -52,7 +52,6 @@ spec:
                 volumeClaimTemplate:
                   spec:
                     accessModes: [ "ReadWriteOnce" ]
-                    storageClassName: "generic"
                     resources:
                       requests:
                         storage: "150Gi"
