@@ -408,7 +408,7 @@ class ZarrRemoteFileHandler:
     """
 
     TMPDIR = "/tmp"
-    DOWNLOAD_THREAD_CNT = 10
+    DOWNLOAD_THREAD_CNT = 100
 
     def __init__(self, job: ApiPreprocessorJob, source: str):
         """
