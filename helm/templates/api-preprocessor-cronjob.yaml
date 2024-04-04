@@ -5,19 +5,20 @@ metadata:
   labels:
     app: api-preprocessor
 spec:
-  schedule: "45 2,8,14,20 * * *"
+  schedule: "0 3,9,15,21 * * *"
   timeZone: "Etc/UTC"
   concurrencyPolicy: Forbid
   startingDeadlineSeconds: 300
   failedJobsHistoryLimit: 6
   jobTemplate:
     spec:
+      activeDeadlineSeconds: 5400  # 1.5 hrs
+      completions: 1
+      parallelism: 13
+      backoffLimit: 2
       template:
         spec:
-          completions: 1
-          parallelism: 13
-          backoffLimit: 2
-          restartPolicy: Never
+          restartPolicy: OnFailure
           serviceAccountName: api-preprocessor-k8s-default-sa
           containers:
             - name: api-preprocessor
