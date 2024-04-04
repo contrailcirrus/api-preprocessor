@@ -5,7 +5,7 @@ import sys
 from lib.handlers import CocipHandler, JobSubscriptionHandler, ZarrRemoteFileHandler
 import lib.environment as env
 from lib import utils
-from lib.exceptions import QueueEmptyError
+from lib.exceptions import QueueEmptyError, ZarrStoreDownloadError
 from lib.log import format_traceback, logger
 
 
@@ -72,7 +72,7 @@ if __name__ == "__main__":
         except QueueEmptyError:
             logger.info("No more messages. Exiting...")
             sys.exit(0)
-        except ZarrRemoteFileHandler as e:
+        except ZarrStoreDownloadError as e:
             logger.error(f"{e}. traceback: {format_traceback()}")
             sys.exit(1)
         except Exception:
