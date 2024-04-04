@@ -2,16 +2,18 @@
 Application handlers.
 """
 
+import os
 import time
 from typing import Union
 
 from lib.schemas import ApiPreprocessorJob
 from lib.log import logger, format_traceback
-from lib.exceptions import QueueEmptyError
+from lib.exceptions import QueueEmptyError, ZarrStoreDownloadError
 from datetime import datetime, timezone, timedelta
 
 from google.api_core import retry
 from google.cloud import pubsub_v1
+from google.cloud.storage import Client, transfer_manager
 from pycontrails import MetDataset, MetDataArray
 from pycontrails.models.cocipgrid import CocipGrid
 from pycontrails.models.ps_model import PSGrid
@@ -398,3 +400,69 @@ class JobSubscriptionHandler:
         """
         self._kill_ack_manager = True
         self._client.close()
+
+
+class ZarrRemoteFileHandler:
+    """
+    Handler for managing localization of remote GCS dirs/files.
+    """
+
+    TMPDIR = "/tmp"
+    DOWNLOAD_THREAD_CNT = 10
+
+    def __init__(self, job: ApiPreprocessorJob, source: str):
+        """
+         Parameters
+         ----------
+        job
+             an ApiPreprocessorJob instance, from which we identify the requisite zarr store
+         source
+             the remote GCS bucket URI for fetching the zarr store
+             e.g. "gs://contrails-301217-ecmwf-hres-forecast-v2-short-term-dev"
+        """
+        self._src_bucket = source.split("/")[2]
+        self._zarr_store_dir_name = datetime.fromtimestamp(
+            job.model_run_at,
+            tz=timezone.utc,
+        ).strftime("%Y%m%d%H")
+
+    def local_store_exists(self) -> bool:
+        return self._zarr_store_dir_name in os.listdir(self.TMPDIR)
+
+    def async_download(self):
+        """
+        Concurrently fetch all files (chunks and metadata) from a GCS remote zarr store.
+        adapted from:
+            https://cloud.google.com/storage/docs/downloading-objects#downloading-an-object
+        """
+        if self.local_store_exists():
+            logger.info("zarr store already exists locally. not downloading.")
+            return
+
+        storage_client = Client()
+        bucket = storage_client.bucket(self._src_bucket)
+
+        blob_names = [
+            blob.name for blob in bucket.list_blobs(prefix=self._zarr_store_dir_name)
+        ]
+
+        results = transfer_manager.download_many_to_path(
+            bucket,
+            blob_names,
+            destination_directory=self.TMPDIR,
+            worker_type=transfer_manager.THREAD,
+            max_workers=self.DOWNLOAD_THREAD_CNT,
+        )
+
+        for name, result in zip(blob_names, results):
+            # The results list is either `None` or an exception for each blob in
+            # the input list, in order.
+            if isinstance(result, Exception):
+                raise ZarrStoreDownloadError(
+                    "failed to download {} due to exception: {}".format(name, result)
+                )
+        logger.info(f"zarr store downloaded to {self.local_zarr_store_fp}")
+
+    @property
+    def local_zarr_store_fp(self):
+        return f"{self.TMPDIR}/{self._zarr_store_dir_name}"
