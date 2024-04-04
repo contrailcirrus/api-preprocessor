@@ -19,7 +19,7 @@ def format_traceback():
     return tb_fmt_str
 
 
-log_fmt = '{"timestamp":"%(asctime)s", "severity": "%(levelname)s", "textPayload": "%(message)s", "labels":{"pid":"%(process)d", "thread":"%(thread)d", "asyncio_taskname":"%(taskName)s"}}'
+log_fmt = '{"timestamp":"%(asctime)s", "severity": "%(levelname)s", "textPayload": "%(message)s", "labels":{"pid":"%(process)d", "thread":"%(thread)d"}}'
 log_level_map = {
     "DEBUG": logging.DEBUG,
     "INFO": logging.INFO,
