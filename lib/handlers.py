@@ -461,6 +461,7 @@ class ZarrRemoteFileHandler:
                 raise ZarrStoreDownloadError(
                     "failed to download {} due to exception: {}".format(name, result)
                 )
+        logger.info(f"zarr store downloaded to {self.local_zarr_store_fp}")
 
     @property
     def local_zarr_store_fp(self):
