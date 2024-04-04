@@ -7,14 +7,14 @@ metadata:
 spec:
   schedule: "0 3,9,15,21 * * *"
   timeZone: "Etc/UTC"
-  concurrencyPolicy: Allow
+  concurrencyPolicy: Forbid
   startingDeadlineSeconds: 300
   failedJobsHistoryLimit: 6
   jobTemplate:
     spec:
       activeDeadlineSeconds: 5400  # 1.5 hrs
-      completions: 1
-      parallelism: 50
+      completions: 50  # MUST MATCH VALUE FROM parallelism
+      parallelism: 50  # MUST MATCH VALUE FROM completions
       backoffLimit: 10
       template:
         spec:
