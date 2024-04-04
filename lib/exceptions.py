@@ -9,3 +9,9 @@ class QueueEmptyError(Exception):
     """
 
     pass
+
+
+class ZarrStoreDownloadError(Exception):
+    """
+    failure to download complete zarr store.
+    """

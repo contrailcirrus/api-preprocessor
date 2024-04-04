@@ -2,7 +2,7 @@
 
 import sys
 
-from lib.handlers import CocipHandler, JobSubscriptionHandler
+from lib.handlers import CocipHandler, JobSubscriptionHandler, ZarrRemoteFileHandler
 import lib.environment as env
 from lib.log import logger, format_traceback
 from lib.exceptions import QueueEmptyError
@@ -21,16 +21,10 @@ def run():
     logger.info("initiating run()")
     with JobSubscriptionHandler(env.API_PREPROCESSOR_SUBSCRIPTION_ID) as job_handler:
         job = job_handler.fetch()
+        zarr_store_handler = ZarrRemoteFileHandler(job, env.SOURCE_PATH)
+        zarr_store_handler.async_download()
 
-        # stubbed values
-        # -------
-        # job = ApiPreprocessorJob(
-        #    model_run_at=1708322400,
-        #    model_predicted_at=1708354800,
-        #    flight_level=300,
-        #    aircraft_class="default",
-        # )
-
+        # TODO: move the following into a validation handler (ticketed)
         # prune jobs where hres met data availability isn't sufficient
         # -------
         # The current (0.49.3) pycontrails implementation needs a buffer
@@ -54,7 +48,7 @@ def run():
 
         logger.info(f"generating outputs for job. job: {job}")
         cocip_handler = CocipHandler(
-            env.SOURCE_PATH,
+            zarr_store_handler.local_zarr_store_fp,
             job,
             f"{env.SINK_PATH}/grids",
             f"{env.SINK_PATH}/regions",
@@ -74,6 +68,9 @@ if __name__ == "__main__":
     except QueueEmptyError:
         logger.info("No more messages. Exiting...")
         sys.exit(0)
+    except ZarrRemoteFileHandler as e:
+        logger.error(f"{e}. traceback: {format_traceback()}")
+        sys.exit(1)
     except Exception:
         logger.error("Unhandled exception:" + format_traceback())
         sys.exit(1)
