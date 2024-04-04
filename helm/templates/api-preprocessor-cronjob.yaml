@@ -15,10 +15,10 @@ spec:
       activeDeadlineSeconds: 5400  # 1.5 hrs
       completions: 1
       parallelism: 13
-      backoffLimit: 2
+      backoffLimit: 10
       template:
         spec:
-          restartPolicy: OnFailure
+          restartPolicy: Never
           serviceAccountName: api-preprocessor-k8s-default-sa
           containers:
             - name: api-preprocessor
