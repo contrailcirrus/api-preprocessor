@@ -1,5 +1,6 @@
-# python-11 required to use precompiled c-binary of google-crc32c
-ARG PYTHON_VERSION=3.11.9
+# Set python version
+# https://hub.docker.com/_/python
+ARG PYTHON_VERSION=3.12.2
 
 # -----------------------------
 # Stage 1: Install dependencies
