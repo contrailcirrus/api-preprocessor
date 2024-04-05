@@ -23,7 +23,7 @@ spec:
           # terminationGracePeriodSeconds should be greater than the time to
           # perform a single job iteration. When a SIGTERM is received, the job
           # has this much time to gracefully exit before being killed.
-          terminationGracePeriodSeconds: 600  # max allowable by k8s
+          terminationGracePeriodSeconds: 600 # max value accepted
           containers:
             - name: api-preprocessor
               image: {{ .Values.image | required ".Values.image is required" | quote }}
