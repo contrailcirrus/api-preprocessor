@@ -3,7 +3,7 @@ Application handlers.
 """
 
 import os
-import time
+import threading
 from typing import Union
 
 from lib.schemas import ApiPreprocessorJob
@@ -291,14 +291,11 @@ class JobSubscriptionHandler:
         subscription
             The fully-qualified URI for the pubsub subscription.
             e.g. 'projects/contrails-301217/subscriptions/api-preprocessor-sub-dev'
-        ack_extension_sec
-            This handler will indefinitely extend the active message's ack deadline by
-            ack_extension_sec until self.ack() is called
         """
         self.subscription = subscription
         self._client = None
-        self._ack_id: Union[None, str] = None
-        self._kill_ack_manager = False
+        self._ack_id: None | str = None
+        self._kill_ack_manager = threading.Event()
         self._ack_manager = Thread(target=self._ack_management_worker, daemon=True)
         self._ack_manager.start()
 
@@ -320,8 +317,8 @@ class JobSubscriptionHandler:
         Extends the ack deadline for the currently outstanding message.
         """
         logger.info("starting ack lease management worker...")
-        while not self._kill_ack_manager:
-            time.sleep(self.ACK_EXTENSION_SEC // 2)
+        while not self._kill_ack_manager.is_set():
+            self._kill_ack_manager.wait(self.ACK_EXTENSION_SEC // 2)
             if self._ack_id:
                 logger.info(
                     f"extending ack deadline on ack_id: {self._ack_id[0:-150]}..."
@@ -398,7 +395,8 @@ class JobSubscriptionHandler:
         """
         Close pubsub client connection.
         """
-        self._kill_ack_manager = True
+        self._ack_id = None
+        self._kill_ack_manager.set()
         self._client.close()
 
 
