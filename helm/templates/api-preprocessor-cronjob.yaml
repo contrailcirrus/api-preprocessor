@@ -13,8 +13,8 @@ spec:
   jobTemplate:
     spec:
       activeDeadlineSeconds: 5400  # 1.5 hrs
-      completions: 5  # MUST MATCH VALUE FROM parallelism
-      parallelism: 5  # MUST MATCH VALUE FROM completions
+      completions: 50  # MUST MATCH VALUE FROM parallelism
+      parallelism: 50  # MUST MATCH VALUE FROM completions
       backoffLimit: 10
       template:
         spec:
@@ -23,7 +23,7 @@ spec:
           # terminationGracePeriodSeconds should be greater than the time to
           # perform a single job iteration. When a SIGTERM is received, the job
           # has this much time to gracefully exit before being killed.
-          terminationGracePeriodSeconds: 1800
+          terminationGracePeriodSeconds: 600  # max allowable by k8s
           containers:
             - name: api-preprocessor
               image: {{ .Values.image | required ".Values.image is required" | quote }}
@@ -40,8 +40,6 @@ spec:
                 requests:
                   cpu: "2"
                   memory: "5000Mi"
-                  ephemeral-storage: "150Gi"
                 limits:
                   cpu: "2"
                   memory: "5000Mi"
-                  ephemeral-storage: "150Gi"
