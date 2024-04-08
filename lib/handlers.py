@@ -2,6 +2,7 @@
 Application handlers.
 """
 
+import json
 import os
 import threading
 from typing import Union
@@ -167,6 +168,25 @@ class CocipHandler:
 
         for poly, path in zip(self._polygons, self.regions_gcs_sink_path):
             self._save_geojson(poly, path)
+
+    @property
+    def polygons(self) -> None | list[tuple[int, str]]:
+        """
+        Each returned tuple contains an integer (the threshold value, one of REGIONS_THRESHOLD),
+        and a string representation of a geojson MultiPolygon object, which itemizes all CoCip
+        polygons for the given flight level (flight level defined at the ApiProcessor.Job level).
+        """
+        if not self._polygons:
+            return None
+
+        thres: int
+        poly: geojson.FeatureCollection
+        out: list[tuple[int, str]] = []
+        for thres, poly in zip(self.REGIONS_THRESHOLDS, self._polygons):
+            feature = dict(poly.features.geometry)
+            feature_str = json.dumps(feature)
+            out.append((thres, feature_str))
+        return out
 
     @staticmethod
     def _load_met_rad(
