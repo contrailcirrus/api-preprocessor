@@ -95,7 +95,9 @@ class RegionsBigQuery:
 
     aircraft_class: str
     flight_level: int
-    timestamp: int  # unixtime in seconds
+    timestamp: int  # unixtime in seconds; predicted_at time for cocip model run
+    hres_model_run_at: int  # unixtime in seconds; model_run_at time for the hres data
+    threshold: int  # threshold value for the generated polygons
     regions: str  # string geojson geometry (MultiPolygon) object
 
     def to_bq_flatmap(self) -> bytes:
@@ -106,15 +108,15 @@ class RegionsBigQuery:
         Converts temporal fields to microseconds epoch.
 
         Adds an `_instance_hash` k-v, of type int,
-        generated as a hash of the composite <flight_level><timestamp><regions>,
+        generated as a hash of the composite <flight_level><timestamp><hres_model_run_at><regions>,
         where timestamp is epoch time in microseconds
         """
         base = asdict(self)
         base["timestamp"] = base["timestamp"] * 1e6
+        base["hres_model_run_at"] = base["hres_model_run_at"] * 1e6
         hash = hashlib.md5(
-            f"{base['flight_level']}{base['timestamp']}{base['regions']}".encode(
-                "utf-8"
-            )
+            f"{base['flight_level']}{base['timestamp']}"
+            f"{base['hres_model_run_at']}{base['regions']}".encode("utf-8")
         )
         # truncate as to be equal or smaller than int64 space when represented as signed int
         hash_trunc = hash.hexdigest()[:8]

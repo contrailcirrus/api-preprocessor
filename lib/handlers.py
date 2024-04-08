@@ -173,7 +173,7 @@ class CocipHandler:
             self._save_geojson(poly, path)
 
     @property
-    def polygons(self) -> None | list[tuple[int, str]]:
+    def regions(self) -> None | list[tuple[int, str]]:
         """
         Each returned tuple contains an integer (the threshold value, one of REGIONS_THRESHOLD),
         and a string representation of a geojson MultiPolygon object, which itemizes all CoCip
