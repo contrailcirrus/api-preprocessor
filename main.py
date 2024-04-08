@@ -2,7 +2,7 @@
 
 import sys
 
-from lib.handlers import CocipHandler, JobSubscriptionHandler
+from lib.handlers import CocipHandler, JobSubscriptionHandler, ValidationHandler
 import lib.environment as env
 from lib import utils
 from lib.exceptions import QueueEmptyError
@@ -23,25 +23,12 @@ def run():
     with JobSubscriptionHandler(env.API_PREPROCESSOR_SUBSCRIPTION_ID) as job_handler:
         job = job_handler.fetch()
 
-        # TODO: move the following into a validation handler (ticketed)
-        # prune jobs where hres met data availability isn't sufficient
-        # -------
-        # The current (0.49.3) pycontrails implementation needs a buffer
-        # for differencing accumulated radiative fluxes.
-        # 1) job.model_predicted_at must be at least half an hour after job.model_run_at
-        # 2) prediction_runway_hrs must extend at least half an hour beyond CocipHandler.MAX_AGE_HR
-        prediction_wall = (
-            job.model_run_at + 72 * 60 * 60
-        )  # 72 hrs of fwd met data per model run
-        prediction_runway_hrs = (prediction_wall - job.model_predicted_at) / (60 * 60)
-        logger.info(
-            f"job should have {prediction_runway_hrs} of forward-looking hres data"
-        )
-        if (
-            job.model_predicted_at < job.model_run_at + 1800  # seconds in 0.5 hr
-            or prediction_runway_hrs < CocipHandler.MAX_AGE_HR + 0.5
-        ):
-            logger.info(f"skipping. not enough met data for job: {job}")
+        # ===================
+        # validate work
+        # ===================
+        validation_handler = ValidationHandler(job)
+        if not validation_handler.sufficient_forecast_range():
+            logger.info("insufficient forecast range. skipping job...")
             job_handler.ack()
             return
 
