@@ -38,6 +38,8 @@ spec:
                   value: {{ .Values.sinkPath | required ".Values.sinkPath is required" | quote }}
                 - name: API_PREPROCESSOR_SUBSCRIPTION_ID
                   value: {{ .Values.apiPreprocessorSubscriptionId | required ".Values.apiPreprocessorSubscriptionId is required" | quote }}
+                - name: API_PREPROCESSOR_SUBSCRIPTION_ID
+                  value: {{ .Values.cocipRegionsBqTopicId | required ".Values.cocipRegionsBqTopicId is required" | quote }}
                 - name: LOG_LEVEL
                   value: INFO
               resources:

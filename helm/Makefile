@@ -5,7 +5,8 @@ deploy: --check-env
 		--set image=$(IMAGE) \
 		--set sourcePath=$(SOURCE_PATH) \
 		--set sinkPath=$(SINK_PATH) \
-		--set apiPreprocessorSubscriptionId=$(API_PREPROCESSOR_SUBSCRIPTION_ID)
+		--set apiPreprocessorSubscriptionId=$(API_PREPROCESSOR_SUBSCRIPTION_ID) \
+		--set cocipRegionsBqTopicId=$(COCIP_REGIONS_BQ_TOPIC_ID)
 
 .PHONY: --check-env
 --check-env:
@@ -14,3 +15,4 @@ deploy: --check-env
 	@test $${SOURCE_PATH?environment variable is required}
 	@test $${SINK_PATH?environment variable is required}
 	@test $${API_PREPROCESSOR_SUBSCRIPTION_ID?environment variable is required}
+	@test $${COCIP_REGIONS_BQ_TOPIC_ID?environment variable is required}
