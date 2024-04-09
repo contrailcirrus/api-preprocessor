@@ -14,7 +14,7 @@ resource "google_bigquery_table" "cocip_regions_dev" {
   deletion_protection = true
   time_partitioning {
     field = "timestamp"
-    type = "WEEK"
+    type = "MONTH"
   }
   schema = file("${path.module}/schemas/cocip_regions.json")
 }
