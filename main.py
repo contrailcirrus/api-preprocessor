@@ -2,7 +2,13 @@
 
 import sys
 
-from lib.handlers import CocipHandler, JobSubscriptionHandler, ValidationHandler
+from lib.handlers import (
+    CocipHandler,
+    JobSubscriptionHandler,
+    ValidationHandler,
+    PubSubPublishHandler,
+)
+from lib.schemas import RegionsBigQuery
 import lib.environment as env
 from lib import utils
 from lib.exceptions import QueueEmptyError
@@ -33,6 +39,9 @@ def run():
             return
 
         logger.info(f"generating outputs for job. job: {job}")
+        # ===================
+        # run CoCip grid model for the job
+        # ===================
         cocip_handler = CocipHandler(
             env.SOURCE_PATH,
             job,
@@ -42,6 +51,23 @@ def run():
         cocip_handler.read()
         cocip_handler.compute()
         cocip_handler.write()
+
+        # ===================
+        # publish regions geojson to BQ
+        # ===================
+        bq_publish_handler = PubSubPublishHandler("bq_topic")
+        for thres, geo in cocip_handler.regions:
+            blob = RegionsBigQuery(
+                aircraft_class=job.aircraft_class,
+                flight_level=job.flight_level,
+                timestamp=job.model_predicted_at,
+                hres_model_run_at=job.model_run_at,
+                threshold=thres,
+                regions=geo,
+            )
+            bq_publish_handler.publish_async(data=blob.to_bq_flatmap())
+        bq_publish_handler.wait_for_publish()
+
         job_handler.ack()
     logger.info(f"processing of job complete. job: {job}")
 
