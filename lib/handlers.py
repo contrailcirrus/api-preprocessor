@@ -186,7 +186,12 @@ class CocipHandler:
         poly: geojson.FeatureCollection
         out: list[tuple[int, str]] = []
         for thres, poly in zip(self.REGIONS_THRESHOLDS, self._polygons):
-            feature = dict(poly.features.geometry)
+            if len(poly.features) > 1:
+                raise ValueError(
+                    f"too many Features in the geojson FeatureCollection. "
+                    f"Expected 1. Got {len(poly.features)}."
+                )
+            feature = dict(poly.features[0].geometry)
             feature_str = json.dumps(feature)
             out.append((thres, feature_str))
         return out
