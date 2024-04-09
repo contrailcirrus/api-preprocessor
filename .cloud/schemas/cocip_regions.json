@@ -1,0 +1,44 @@
+[
+  {
+    "name": "_instance_hash",
+    "type": "INT64",
+    "mode": "REQUIRED",
+    "description": "unique hash for a cocip regions output (flight-level and aircraft-class basis)"
+  },
+  {
+    "name": "timestamp",
+    "type": "TIMESTAMP",
+    "mode": "REQUIRED",
+    "description": "predicted_at time for CoCip model run"
+  },
+  {
+    "name": "hres_model_run_at",
+    "type": "TIMESTAMP",
+    "mode": "REQUIRED",
+    "description": "model_run_at time for hres data underlying the CoCip model run"
+  },
+  {
+    "name": "aircraft_class",
+    "type": "STRING",
+    "mode": "REQUIRED",
+    "description": "name for the aircraft_class used in running cocip"
+  },
+  {
+    "name": "flight_level",
+    "type": "INT64",
+    "mode": "REQUIRED",
+    "description": "flight level in hectofeet for the regions prediction"
+  },
+  {
+    "name": "threshold",
+    "type": "INT64",
+    "mode": "REQUIRED",
+    "description": "threshold value used in generating polygons from the CoCip grid"
+  },
+  {
+    "name": "regions",
+    "type": "STRING",
+    "mode": "REQUIRED",
+    "description": "arrival (landing) scheduled time for the flight instance"
+  }
+]
