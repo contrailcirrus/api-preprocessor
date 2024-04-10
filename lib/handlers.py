@@ -178,6 +178,10 @@ class CocipHandler:
         Each returned tuple contains an integer (the threshold value, one of REGIONS_THRESHOLD),
         and a string representation of a geojson MultiPolygon object, which itemizes all CoCip
         polygons for the given flight level (flight level defined at the ApiProcessor.Job level).
+
+        Altitude (third coordinate position) is removed from the points in the MultiPolygon.
+        Three positional elements are not supported in BigQuery
+        ref (Constraints): https://cloud.google.com/bigquery/docs/reference/standard-sql/geography_functions#st_geogfromgeojson
         """
         if not self._polygons:
             return None
@@ -186,8 +190,13 @@ class CocipHandler:
         poly: geojson.FeatureCollection
         out: list[tuple[int, str]] = []
         for thres, poly in zip(self.REGIONS_THRESHOLDS, self._polygons):
-            feature = dict(poly.features["geometry"])
-            feature_str = json.dumps(feature)
+            feature_geom = dict(poly.features["geometry"])
+            # remove third positional element in each point (lon, lat, alt)
+            for polygon in feature_geom["coordinates"]:
+                for linestring in polygon:
+                    for coord in linestring:
+                        coord.pop()
+            feature_str = json.dumps(feature_geom)
             out.append((thres, feature_str))
         return out
 
