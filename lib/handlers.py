@@ -190,7 +190,9 @@ class CocipHandler:
             try:
                 feature = dict(poly.features.geometry)
             except Exception:
-                logger.error(f"could not marshall poly.features: {poly.features}")
+                logger.error(
+                    f"could not marshall poly.features. type: {type(poly.features)}"
+                )
                 sys.exit(1)
             feature_str = json.dumps(feature)
             out.append((thres, feature_str))
