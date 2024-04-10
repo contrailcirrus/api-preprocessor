@@ -4,7 +4,6 @@ Application handlers.
 
 import json
 import os
-import sys
 import threading
 from concurrent import futures
 from typing import Union
@@ -187,13 +186,7 @@ class CocipHandler:
         poly: geojson.FeatureCollection
         out: list[tuple[int, str]] = []
         for thres, poly in zip(self.REGIONS_THRESHOLDS, self._polygons):
-            try:
-                feature = dict(poly.features.geometry)
-            except Exception:
-                logger.error(
-                    f"could not marshall poly.features. type: {type(poly.features)}"
-                )
-                sys.exit(1)
+            feature = dict(poly.features["geometry"])
             feature_str = json.dumps(feature)
             out.append((thres, feature_str))
         return out
