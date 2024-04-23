@@ -95,12 +95,21 @@ class QueueClient:
             and the subscription bound to the receiving topic,
             must be configured to use ordered messages.
         timeout_seconds
-            timeout applied to each gRPC call to the PubSub API
+            timeout applied to total time elapsed for the PubSub gRPC calls and retries
         metadata
             any additional k-vs that contextualize the publish event.
             these will be added as context to the publisher callback,
             which includes them in any failure logs.
         """
+
+        # Timeout behavior governed by google.api_core gRPC methods documented here:
+        # https://github.com/googleapis/python-api-core/blob/828ffe1d7b2edd36be5e852524adb7f5d1241770/google/api_core/retry/retry_unary.py#L170-L262
+        #
+        # Timeout: the maximum duration of time after which a certain operation
+        # must terminate (successfully or with an error). The countdown begins right
+        # after an operation was started. For example, if an operation was started at
+        # 09:24:00 with timeout of 75 seconds, it must terminate no later than
+        # 09:25:15.
         future: concurrent.futures.Future = self._publisher.publish(
             topic=self._topic_id,
             data=data,
