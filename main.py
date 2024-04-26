@@ -2,15 +2,15 @@
 
 import sys
 
-from lib.handlers import CocipHandler, JobSubscriptionHandler, PubSubPublishHandler
-from lib.schemas import RegionsBigQuery
 import lib.environment as env
-from lib import utils
+from lib import queue, utils
 from lib.exceptions import QueueEmptyError
+from lib.handlers import CocipHandler, JobSubscriptionHandler
 from lib.log import format_traceback, logger
+from lib.schemas import RegionsBigQuery
 
 
-def run():
+def run() -> None:
     """
     Generate grids and regions data product,
     and write it to a location backing the /v1 public API.
@@ -63,7 +63,10 @@ def run():
         # ===================
         # publish regions geojson to BQ
         # ===================
-        bq_publish_handler = PubSubPublishHandler(env.COCIP_REGIONS_BQ_TOPIC_ID)
+        bq_publish_handler = queue.QueueClient(
+            topic_id=env.COCIP_REGIONS_BQ_TOPIC_ID,
+            ordered_queue=False,
+        )
         for thres, geo in cocip_handler.regions:
             blob = RegionsBigQuery(
                 aircraft_class=job.aircraft_class,
@@ -73,8 +76,11 @@ def run():
                 threshold=thres,
                 regions=geo,
             )
-            bq_publish_handler.publish_async(data=blob.to_bq_flatmap())
-        bq_publish_handler.wait_for_publish()
+            bq_publish_handler.publish_async(
+                data=blob.to_bq_flatmap(),
+                timeout_seconds=45,
+            )
+        bq_publish_handler.wait_for_publish(timeout_seconds=60)
 
         job_handler.ack()
     logger.info(f"processing of job complete. job: {job}")

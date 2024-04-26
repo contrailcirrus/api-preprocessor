@@ -4,36 +4,31 @@ Application handlers.
 
 import json
 import os
+import tempfile
 import threading
-from concurrent import futures
+import warnings
+from datetime import datetime, timedelta, timezone
+from threading import Thread
 from typing import Union
 
-from google.cloud.pubsub_v1.types import PublishFlowControl, LimitExceededBehavior
-
-from lib.schemas import ApiPreprocessorJob
-from lib.log import logger, format_traceback
-from lib.exceptions import QueueEmptyError, ZarrStoreDownloadError
-from datetime import datetime, timezone, timedelta
-
+import gcsfs
+import geojson
+import numpy as np
+import xarray as xr
 from google.api_core import retry
 from google.cloud import pubsub_v1
 from google.cloud.storage import Client, transfer_manager
-from pycontrails import MetDataset, MetDataArray
+from pycontrails import MetDataArray, MetDataset
 from pycontrails.models.cocipgrid import CocipGrid
-from pycontrails.models.ps_model import PSGrid
 from pycontrails.models.humidity_scaling import (
     ExponentialBoostLatitudeCorrectionHumidityScaling,
 )
-
+from pycontrails.models.ps_model import PSGrid
 from pycontrails.physics import units
 
-import numpy as np
-import xarray as xr
-import gcsfs
-import tempfile
-import geojson
-from threading import Thread
-import warnings
+from lib.exceptions import QueueEmptyError, ZarrStoreDownloadError
+from lib.log import format_traceback, logger
+from lib.schemas import ApiPreprocessorJob
 
 
 class CocipHandler:
@@ -305,99 +300,6 @@ class CocipHandler:
         fs = gcsfs.GCSFileSystem()
         with fs.open(sink_path, "w") as f:
             geojson.dump(fc, f)
-
-
-class PubSubPublishHandler:
-    def __init__(
-        self,
-        topic_id: str,
-        ordered_queue: bool = False,
-        max_message_backlog: int = 1000,
-        max_mem_backlog_mb: int = 10,
-    ) -> None:
-        """
-        Parameters
-        ----------
-        topic_id
-            fully-qualified uri for the pubsub topic.
-            e.g. `projects/contrails-301217/topics/my-topic-name-dev`
-        ordered_queue
-            type of queue.
-            True if ordered (requires ordering key).
-            False if unordered.
-        max_message_backlog
-            maximum number of messages backlogged for async publish.
-            if number of pending messages exceeds this limit, async publish will block.
-        max_mem_backlog_mb
-            maximum total memory (in mb) of messages backlogged for async publish.
-            if total mem exceeds this limit, async publish will block.
-        """
-
-        self._topic_id = topic_id
-        self._ordered_queue = ordered_queue
-
-        # Uses default retry policy which uses exponential backoff to manage retries.
-        # The backoff is limited to [0.1, 60] seconds and increases by *1.3 on each
-        # publish error. Retries are managed separately for each ordering key.
-        # See: https://cloud.google.com/pubsub/docs/retry-requests
-        flow_control_settings = PublishFlowControl(
-            message_limit=max_message_backlog,
-            byte_limit=max_mem_backlog_mb * 1024 * 1024,
-            limit_exceeded_behavior=LimitExceededBehavior.BLOCK,
-        )
-
-        self._publisher = pubsub_v1.PublisherClient(
-            publisher_options=pubsub_v1.types.PublisherOptions(
-                enable_message_ordering=ordered_queue,
-                flow_control=flow_control_settings,
-            )
-        )
-        self._publish_futures: list[futures.Future] = []
-
-    @staticmethod
-    def _raise_exception_if_failed(future: futures.Future) -> None:
-        """Re-raise any exceptions raised by the future's execution thread.
-
-        This should be registered as a callback that will only be invoked when the future
-        has already completed using:
-            future.add_done_callback(_raise_exception_if_failed)
-        """
-        future.result()
-
-    def publish_async(self, data: bytes, ordering_key: str = "") -> None:
-        """Add data to the current publish batch.
-
-        Batches are pushed asynchronously to GCP PubSub in a separate thread. To wait
-        for one or more publish calls until they have been received by the server, call
-        wait_for_publish.
-
-        Parameters
-        ----------
-        data
-            byte encoded string payload
-        ordering_key
-            required if handler was instantiated with ordered_queue=True
-            payloads sharing the same ordering_key are guaranteed to be delivered to
-            consumers in the order they are published
-        """
-        future: futures.Future = self._publisher.publish(
-            topic=self._topic_id,
-            data=data,
-            ordering_key=ordering_key,
-        )
-        future.add_done_callback(self._raise_exception_if_failed)
-        self._publish_futures.append(future)
-
-    def wait_for_publish(self, timeout: float | None = None) -> None:
-        """Block until all current publish batches are received by server.
-
-        Raises
-        ------
-        concurrent.futures.TimeoutError: server did not respond
-        Exception: will re-raise exceptions raised by the batch execution threads
-        """
-        futures.wait(self._publish_futures, timeout=timeout)
-        self._publish_futures = []
 
 
 class JobSubscriptionHandler:
