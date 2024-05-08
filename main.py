@@ -61,7 +61,6 @@ def run(
         # ===================
         # publish regions geojson to BQ
         # ===================
-        bq_publish_handler = PubSubPublishHandler("bq_topic")
         for thres, geo in cocip_handler.regions:
             blob = schemas.RegionsBigQuery(
                 aircraft_class=job.aircraft_class,
