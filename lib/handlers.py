@@ -2,38 +2,35 @@
 Application handlers.
 """
 
+import concurrent.futures
 import json
 import os
+import tempfile
 import threading
-from concurrent import futures
-from typing import Union
+from collections.abc import Callable, Iterator
+from dataclasses import dataclass
+from datetime import datetime, timedelta, timezone
+from typing import Any, Union
 
-from google.cloud.pubsub_v1.types import PublishFlowControl, LimitExceededBehavior
-
-from lib.schemas import ApiPreprocessorJob
-from lib.log import logger, format_traceback
-from lib.exceptions import QueueEmptyError, ZarrStoreDownloadError
-from datetime import datetime, timezone, timedelta
-
-from google.api_core import retry
-from google.cloud import pubsub_v1
-from google.cloud.storage import Client, transfer_manager
-from pycontrails import MetDataset, MetDataArray
+import gcsfs  # type: ignore
+import geojson  # type: ignore
+import google.api_core.exceptions
+import google.api_core.retry
+import numpy as np
+import xarray as xr
+from google.cloud import pubsub_v1  # type: ignore
+from google.cloud.storage import Client, transfer_manager  # type: ignore
+from pycontrails import MetDataArray, MetDataset
 from pycontrails.models.cocipgrid import CocipGrid
-from pycontrails.models.ps_model import PSGrid
 from pycontrails.models.humidity_scaling import (
     ExponentialBoostLatitudeCorrectionHumidityScaling,
 )
-
+from pycontrails.models.ps_model import PSGrid
 from pycontrails.physics import units
 
-import numpy as np
-import xarray as xr
-import gcsfs
-import tempfile
-import geojson
-from threading import Thread
-import warnings
+from lib.exceptions import QueueEmptyError, ZarrStoreDownloadError
+from lib.log import format_traceback, logger
+from lib.schemas import ApiPreprocessorJob
 
 
 class ValidationHandler:
@@ -213,6 +210,10 @@ class CocipHandler:
         Each returned tuple contains an integer (the threshold value, one of REGIONS_THRESHOLD),
         and a string representation of a geojson MultiPolygon object, which itemizes all CoCip
         polygons for the given flight level (flight level defined at the ApiProcessor.Job level).
+
+        Altitude (third coordinate position) is removed from the points in the MultiPolygon.
+        Three positional elements are not supported in BigQuery
+        ref (Constraints): https://cloud.google.com/bigquery/docs/reference/standard-sql/geography_functions#st_geogfromgeojson
         """
         if not self._polygons:
             return None
@@ -221,8 +222,13 @@ class CocipHandler:
         poly: geojson.FeatureCollection
         out: list[tuple[int, str]] = []
         for thres, poly in zip(self.REGIONS_THRESHOLDS, self._polygons):
-            feature = dict(poly.features.geometry)
-            feature_str = json.dumps(feature)
+            feature_geom = dict(poly.features["geometry"])
+            # remove third positional element in each point (lon, lat, alt)
+            for polygon in feature_geom["coordinates"]:
+                for linestring in polygon:
+                    for coord in linestring:
+                        coord.pop()
+            feature_str = json.dumps(feature_geom)
             out.append((thres, feature_str))
         return out
 
@@ -333,64 +339,228 @@ class CocipHandler:
             geojson.dump(fc, f)
 
 
-class PubSubPublishHandler:
+@dataclass(frozen=True)
+class Message:
+    data: bytes
+    ack_id: str
+    ordering_key: str
+
+
+class PubSubSubscriptionHandler:
+    """
+    Handler for managing consumption and marshalling of jobs from a pubsub subscription queue.
+    """
+
     def __init__(
         self,
-        topic_id: str,
-        ordered_queue: bool = False,
-        max_message_backlog: int = 1000,
-        max_mem_backlog_mb: int = 10,
-    ) -> None:
+        subscription: str,
+        ack_extension_sec: float = 300,
+        pull_timeout_sec: float = 60.0,
+    ):
         """
         Parameters
         ----------
-        topic_id
-            fully-qualified uri for the pubsub topic.
-            e.g. `projects/contrails-301217/topics/my-topic-name-dev`
-        ordered_queue
-            type of queue.
-            True if ordered (requires ordering key).
-            False if unordered.
-        max_message_backlog
-            maximum number of messages backlogged for async publish.
-            if number of pending messages exceeds this limit, async publish will block.
-        max_mem_backlog_mb
-            maximum total memory (in mb) of messages backlogged for async publish.
-            if total mem exceeds this limit, async publish will block.
+        subscription
+            The fully-qualified URI for the pubsub subscription.
+            e.g. 'projects/contrails-301217/subscriptions/api-preprocessor-sub-dev'
+        ack_extension_sec
+            Seconds the lease management thread will periodically extend the ack
+            deadline for outstanding messages.
+        pull_timeout_sec
+            Seconds the subscriber client will block for messages before retrying.
         """
+        self.subscription = subscription
+        self.pull_timeout_sec = pull_timeout_sec
+        self.ack_extension_sec = ack_extension_sec
 
-        self._topic_id = topic_id
-        self._ordered_queue = ordered_queue
+        self._client = pubsub_v1.SubscriberClient()
 
-        # Uses default retry policy which uses exponential backoff to manage retries.
-        # The backoff is limited to [0.1, 60] seconds and increases by *1.3 on each
-        # publish error. Retries are managed separately for each ordering key.
-        # See: https://cloud.google.com/pubsub/docs/retry-requests
-        flow_control_settings = PublishFlowControl(
-            message_limit=max_message_backlog,
-            byte_limit=max_mem_backlog_mb * 1024 * 1024,
-            limit_exceeded_behavior=LimitExceededBehavior.BLOCK,
+        self._outstanding_messages: set[Message] = set()
+
+    def _fetch(self) -> Message:
+        """Fetch a message from the subscription queue.
+
+        Returns
+        -------
+        Message
+            The dequeued message from the pubsub subscription.
+
+        Raises
+        ------
+        QueueEmptyError
+            No data was returned from the PubSub subscription
+        """
+        logger.info(f"fetching message from {self.subscription}")
+        resp = self._client.pull(
+            request={"subscription": self.subscription, "max_messages": 1},
+            timeout=self.pull_timeout_sec,
         )
+
+        if len(resp.received_messages) == 0:
+            # it is possible there are no messages available,
+            # or, pubsub returned zero when there are in fact some messages
+            logger.info("zero messages received.")
+            raise QueueEmptyError()
+
+        pubsub_msg = resp.received_messages[0]
+        logger.info(
+            f"received 1 message from {self.subscription}. "
+            f"published_time: {pubsub_msg.message.publish_time}, "
+            f"message_id: {pubsub_msg.message.message_id}"
+        )
+
+        message = Message(
+            data=pubsub_msg.message.data,
+            ack_id=pubsub_msg.ack_id,
+            ordering_key=pubsub_msg.message.ordering_key,
+        )
+        return message
+
+    def subscribe(self) -> Iterator[Message]:
+        """Yields messages from the subscription.
+
+        This method returns an iterator to loop over messages in the subscription. While
+        iterating over the result, a sidecar thread will periodically extend the ack
+        deadlines associated with outstanding messages to avoid redelivery while work
+        is in progress.
+        """
+        # Start lease manager thread to periodically extend ack deadline.
+        exit_when_set = threading.Event()
+        lease_manager = threading.Thread(
+            target=self._ack_management_worker,
+            kwargs=dict(exit_when_set=exit_when_set),
+            daemon=True,
+        )
+        lease_manager.start()
+
+        try:
+            while True:
+                message = self._fetch()
+                self._outstanding_messages.add(message)
+                yield message
+                # Guard against user failing to call ack() or nack()
+                if message in self._outstanding_messages:
+                    logger.warning(f"Message was never ack'ed or nack'ed: {message}")
+                    self._outstanding_messages.discard(message)
+        except GeneratorExit:
+            pass
+
+        # Signal lease manager thread exit
+        exit_when_set.set()
+        # Block until lease manager thread exits
+        lease_manager.join()
+
+    def ack(self, message: Message):
+        """Acknowledge the message to remove from the queue."""
+        # Stop extending lease before server-side ack. This avoids cases where the lease
+        # management worker fails to extend the ack deadline for an already ack'ed
+        # message, at the cost of a small probability of redelivery.
+        try:
+            self._outstanding_messages.remove(message)
+        except KeyError:
+            logger.warning(f"Message ack'ed or nack'ed multiple times: {message}")
+
+        self._client.acknowledge(
+            request={"subscription": self.subscription, "ack_ids": [message.ack_id]},
+            timeout=30,
+        )
+        logger.info("successfully ack'ed message.")
+
+    def nack(self, message: Message):
+        """Not-acknowledge the message to stop extending ack deadline.
+
+        Does not nack the message server-side, so the message will be retried based on
+        the server-side redelivery configuration rather than immediately redelivered to
+        another worker.
+        """
+        try:
+            self._outstanding_messages.remove(message)
+        except KeyError:
+            logger.warning(f"Message ack'ed or nack'ed multiple times: {message}")
+
+    def _ack_management_worker(self, exit_when_set: threading.Event):
+        """
+        Extends the ack deadline for the currently outstanding message.
+        """
+        logger.info("starting ack lease management worker...")
+        while True:
+            should_exit = exit_when_set.wait(self.ack_extension_sec / 2)
+            if should_exit:
+                break
+
+            # Avoid iterating over a mutable set.
+            messages = self._outstanding_messages.copy()
+            for message in messages:
+                ack_id = message.ack_id
+                logger.info(f"extending ack deadline on ack_id: {ack_id[0:-150]}...")
+                try:
+                    self._client.modify_ack_deadline(
+                        request={
+                            "subscription": self.subscription,
+                            "ack_ids": [ack_id],
+                            "ack_deadline_seconds": self.ack_extension_sec,
+                        }
+                    )
+                except Exception:
+                    logger.error(
+                        "failed to extend ack deadline for message. "
+                        f"traceback: {format_traceback()}"
+                    )
+
+        logger.info("terminated ack lease management worker")
+
+
+class PubSubPublishHandler:
+    def __init__(self, topic_id: str, ordered_queue: bool) -> None:
+        self._topic_id = topic_id
 
         self._publisher = pubsub_v1.PublisherClient(
+            # Batch settings increase payload size to execute fewer, larger requests.
+            # See: https://cloud.google.com/pubsub/docs/batch-messaging
+            batch_settings=pubsub_v1.types.BatchSettings(
+                max_messages=1000,
+                max_bytes=20 * 1000 * 1000,  # 20 MB max server-side request size
+                max_latency=0.1,  # default: 10 ms
+            ),
             publisher_options=pubsub_v1.types.PublisherOptions(
                 enable_message_ordering=ordered_queue,
-                flow_control=flow_control_settings,
-            )
+                # Flow control applies rate limits by blocking any time the staged data
+                # exceeds the following settings. Once the records are received by GCP
+                # PubSub, additional publish calls are unblocked.
+                # See: https://cloud.google.com/pubsub/docs/flow-control-messages
+                flow_control=pubsub_v1.types.PublishFlowControl(
+                    message_limit=100 * 1000,
+                    byte_limit=1024 * 1024 * 1024,  # 1 GiB
+                    limit_exceeded_behavior=pubsub_v1.types.LimitExceededBehavior.BLOCK,
+                ),
+                # Retry defaults depend on gRPC method, see default for publish here:
+                # https://github.com/googleapis/python-pubsub/blob/ff229a5fdd4deaff0ac97c74f313d04b62720ff7/google/pubsub_v1/services/publisher/transports/base.py#L164-L183
+                retry=google.api_core.retry.Retry(
+                    initial=0.1,
+                    maximum=10,
+                    multiplier=2,
+                    predicate=google.api_core.retry.if_exception_type(
+                        google.api_core.exceptions.Aborted,
+                        google.api_core.exceptions.Cancelled,
+                        google.api_core.exceptions.DeadlineExceeded,
+                        google.api_core.exceptions.InternalServerError,
+                        google.api_core.exceptions.ResourceExhausted,
+                        google.api_core.exceptions.ServiceUnavailable,
+                        google.api_core.exceptions.Unknown,
+                    ),
+                ),
+            ),
         )
-        self._publish_futures: list[futures.Future] = []
 
-    @staticmethod
-    def _raise_exception_if_failed(future: futures.Future) -> None:
-        """Re-raise any exceptions raised by the future's execution thread.
+        self._publish_futures: list[concurrent.futures.Future] = []
 
-        This should be registered as a callback that will only be invoked when the future
-        has already completed using:
-            future.add_done_callback(_raise_exception_if_failed)
-        """
-        future.result()
-
-    def publish_async(self, data: bytes, ordering_key: str = "") -> None:
+    def publish_async(
+        self,
+        data: bytes,
+        timeout_seconds: float,
+        ordering_key: str = "",
+        log_context: dict[str, Any] | None = None,
+    ) -> None:
         """Add data to the current publish batch.
 
         Batches are pushed asynchronously to GCP PubSub in a separate thread. To wait
@@ -402,153 +572,87 @@ class PubSubPublishHandler:
         data
             byte encoded string payload
         ordering_key
-            required if handler was instantiated with ordered_queue=True
             payloads sharing the same ordering_key are guaranteed to be delivered to
-            consumers in the order they are published
+            consumers in the order they are published. the publisher client,
+            and the subscription bound to the receiving topic,
+            must be configured to use ordered messages.
+        timeout_seconds
+            timeout applied to each gRPC call to the PubSub API
+        metadata
+            any additional k-vs that contextualize the publish event.
+            these will be added as context to the publisher callback,
+            which includes them in any failure logs.
         """
-        future: futures.Future = self._publisher.publish(
+        future: concurrent.futures.Future = self._publisher.publish(
             topic=self._topic_id,
             data=data,
             ordering_key=ordering_key,
+            timeout=timeout_seconds,
         )
-        future.add_done_callback(self._raise_exception_if_failed)
+
+        done_callback = self._done_callback_factory(log_context)
+        future.add_done_callback(done_callback)
         self._publish_futures.append(future)
 
-    def wait_for_publish(self, timeout: float | None = None) -> None:
+    def wait_for_publish(self, timeout_seconds: float | None = None) -> None:
         """Block until all current publish batches are received by server.
 
-        Raises
-        ------
-        concurrent.futures.TimeoutError: server did not respond
-        Exception: will re-raise exceptions raised by the batch execution threads
-        """
-        futures.wait(self._publish_futures, timeout=timeout)
-        self._publish_futures = []
-
-
-class JobSubscriptionHandler:
-    """
-    Handler for managing consumption and marshalling of jobs from a pubsub subscription queue.
-    """
-
-    # the number of seconds the subscriber client will hang, waiting for available messages
-    MSG_WAIT_TIME_SEC = 60.0
-    ACK_EXTENSION_SEC: int = 300
-
-    def __init__(self, subscription: str):
-        """
         Parameters
         ----------
-        subscription
-            The fully-qualified URI for the pubsub subscription.
-            e.g. 'projects/contrails-301217/subscriptions/api-preprocessor-sub-dev'
+        timeout_seconds
+            Duration to wait for all publish jobs to complete. If timeout_seconds is
+            exceeded, the process will be force exited with os._exit(1).
         """
-        self.subscription = subscription
-        self._client = None
-        self._ack_id: None | str = None
-        self._kill_ack_manager = threading.Event()
-        self._ack_manager = Thread(target=self._ack_management_worker, daemon=True)
-        self._ack_manager.start()
+        _, not_done = concurrent.futures.wait(
+            self._publish_futures,
+            timeout=timeout_seconds,
+        )
 
-    def __enter__(self):
-        """
-        Initialize pubsub client to be used across this class instance's lifecycle.
-        """
-        self._client = pubsub_v1.SubscriberClient()
-        return self
+        # Exit if any publish futures have not completed before configured timeout.
+        #
+        # We cannot raise an exception or invoke sys.exit from the parent while child
+        # threads are still running, because cpython configures a shutdown handler to
+        # wait for spawned threads to complete before exiting:
+        # https://github.com/python/cpython/blob/8f25cc992021d6ffc62bb110545b97a92f7cb295/Lib/concurrent/futures/thread.py#L18-L37
+        #
+        # Errors in child threads trigger a separate exit using a future done_callback.
+        if not_done:
+            logger.error("Futures did not complete before timeout: %s", not_done)
+            os._exit(1)
 
-    def __exit__(self, exc_type, exc_val, exc_tb):
-        """
-        Ensure client connection to pubsub is closed.
-        """
-        self.close()
+        # All futures completed without error, reset pending futures state.
+        self._publish_futures = []
 
-    def _ack_management_worker(self):
+    @staticmethod
+    def _done_callback_factory(
+        log_context: dict[str, Any] | None,
+    ) -> Callable[[concurrent.futures.Future], None]:
         """
-        Extends the ack deadline for the currently outstanding message.
+        returns a function to use as a callback.
+        Constructs a log message annotating with any k-vs passed to this method.
         """
-        logger.info("starting ack lease management worker...")
-        while not self._kill_ack_manager.is_set():
-            self._kill_ack_manager.wait(self.ACK_EXTENSION_SEC // 2)
-            if self._ack_id:
-                logger.info(
-                    f"extending ack deadline on ack_id: {self._ack_id[0:-150]}..."
+        msg = ""
+        if log_context:
+            for k, v in log_context.items():
+                msg += f" {k}={v} "
+
+        def _exit_on_error(future: concurrent.futures.Future) -> None:
+            """Re-raise any exceptions raised by the future's execution thread.
+
+            This should be registered as a callback that will only be invoked when the future
+            has already completed using:
+                future.add_done_callback(_raise_exception_if_failed)
+            """
+            try:
+                future.result(timeout=0)
+            except Exception:
+                logger.error(
+                    f"Publish future failed: {msg}. Unhandled exception:"
+                    + format_traceback()
                 )
-                try:
-                    self._client.modify_ack_deadline(
-                        request={
-                            "subscription": self.subscription,
-                            "ack_ids": [self._ack_id],
-                            "ack_deadline_seconds": self.ACK_EXTENSION_SEC,
-                        }
-                    )
-                except Exception:
-                    logger.error(
-                        f"failed to extend ack deadline for message. "
-                        f"traceback: {format_traceback()}"
-                    )
-        logger.info("terminated ack lease management worker")
+                os._exit(1)
 
-    def fetch(self) -> ApiPreprocessorJob:
-        """
-        Fetch a message from the subscription queue.
-        Returns
-        -------
-        str
-            The dequeued message from the pubsub subscription.
-        """
-        if not self._client:
-            self._client = pubsub_v1.SubscriberClient()
-            warnings.warn(
-                "pubsub subscriber client initialized. "
-                "connection will remain open until close()."
-            )
-
-        logger.info(f"fetching message from {self.subscription}")
-        resp = self._client.pull(
-            request={"subscription": self.subscription, "max_messages": 1},
-            retry=retry.Retry(timeout=30.0),
-            timeout=self.MSG_WAIT_TIME_SEC,
-        )
-
-        if len(resp.received_messages) == 0:
-            # it is possible there are no messages available,
-            # or, pubsub returned zero when there are in fact some messages to fetch on retry
-            logger.info("zero messages received.")
-            raise QueueEmptyError()
-
-        msg = resp.received_messages[0]
-        self._ack_id = msg.ack_id
-        logger.info(
-            f"received 1 message from {self.subscription}. "
-            f"published_time: {msg.message.publish_time}, "
-            f"message_id: {msg.message.message_id}"
-        )
-        return ApiPreprocessorJob.from_utf8_json(msg.message.data)
-
-    def ack(self):
-        """
-        Acknowledge the outstanding message presently handled by the instance of this class.
-        """
-        if not self._ack_id:
-            raise ValueError(
-                "ack_id is not set. call fetch(). "
-                "handler instance must be handling an outstanding message."
-            )
-        self._client.acknowledge(
-            request={"subscription": self.subscription, "ack_ids": [self._ack_id]},
-            retry=retry.Retry(timeout=30.0),
-        )
-        logger.info("successfully ack'ed message.")
-        self._ack_id = None
-
-    def close(self):
-        """
-        Close pubsub client connection.
-        """
-        self._ack_id = None
-        self._kill_ack_manager.set()
-        self._client.close()
+        return _exit_on_error
 
 
 class ZarrRemoteFileHandler:

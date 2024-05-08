@@ -13,8 +13,8 @@ spec:
   jobTemplate:
     spec:
       activeDeadlineSeconds: 5400  # 1.5 hrs
-      completions: 50  # MUST MATCH VALUE FROM parallelism
-      parallelism: 50  # MUST MATCH VALUE FROM completions
+      completions: 60  # MUST MATCH VALUE FROM parallelism
+      parallelism: 60  # MUST MATCH VALUE FROM completions
       backoffLimit: 10
       template:
         spec:
@@ -38,12 +38,14 @@ spec:
                   value: {{ .Values.sinkPath | required ".Values.sinkPath is required" | quote }}
                 - name: API_PREPROCESSOR_SUBSCRIPTION_ID
                   value: {{ .Values.apiPreprocessorSubscriptionId | required ".Values.apiPreprocessorSubscriptionId is required" | quote }}
+                - name: COCIP_REGIONS_BQ_TOPIC_ID
+                  value: {{ .Values.cocipRegionsBqTopicId | required ".Values.cocipRegionsBqTopicId is required" | quote }}
                 - name: LOG_LEVEL
                   value: INFO
               resources:
                 requests:
-                  cpu: "2"
-                  memory: "5000Mi"
+                  cpu: "1.25"
+                  memory: "5Gi"
                 limits:
-                  cpu: "2"
-                  memory: "5000Mi"
+                  cpu: "1.25"
+                  memory: "5Gi"

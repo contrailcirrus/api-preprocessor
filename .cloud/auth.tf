@@ -21,6 +21,7 @@ resource "google_project_iam_custom_role" "api_preprocessor_role" {
     "storage.objects.get",
     "storage.objects.list",
     "storage.objects.delete",
+    "pubsub.topics.publish",
     "pubsub.snapshots.seek",
     "pubsub.subscriptions.consume",
     "pubsub.topics.attachSubscription",
