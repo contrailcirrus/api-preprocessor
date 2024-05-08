@@ -1,6 +1,7 @@
 """
 Application handlers.
 """
+
 import concurrent.futures
 import json
 import os
@@ -30,6 +31,41 @@ from pycontrails.physics import units
 from lib.exceptions import QueueEmptyError, ZarrStoreDownloadError
 from lib.log import format_traceback, logger
 from lib.schemas import ApiPreprocessorJob
+
+
+class ValidationHandler:
+    """
+    A validation handler that guarantees certain CoCip model prerequisites are met.
+    Tests are applied to the HRES data and zarr stores.
+    """
+
+    def __init__(self, job: ApiPreprocessorJob):
+        self._job = job
+
+    def sufficient_forecast_range(self) -> bool:
+        """
+        Verifies that sufficient HRES data exists to run the CoCip model.
+        Loosely, this is governed by the MAX_AGE_HR configuration on the CoCip model instance.
+
+        Specifically, the current (0.49.3) pycontrails implementation needs a buffer
+        for differencing accumulated radiative fluxes.
+        Ergo, conditions:
+        1) job.model_predicted_at must be at least half an hour after job.model_run_at
+        2) prediction_runway_hrs must extend at least half an hour beyond CocipHandler.MAX_AGE_HR
+        """
+        # 72 hrs of fwd met data per model run
+        prediction_wall = self._job.model_run_at + 72 * 60 * 60
+
+        prediction_runway_hrs = (prediction_wall - self._job.model_predicted_at) / (
+            60 * 60
+        )
+        if (
+            self._job.model_predicted_at
+            < self._job.model_run_at + 1800  # seconds in 0.5 hr
+            or prediction_runway_hrs < CocipHandler.MAX_AGE_HR + 0.5
+        ):
+            return False
+        return True
 
 
 class CocipHandler:
