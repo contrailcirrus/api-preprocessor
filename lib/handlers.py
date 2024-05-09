@@ -324,7 +324,7 @@ class CocipHandler:
             min_area=0.3,  # schemas.py L1396, used to index `POLYGON_MIN_AREA` in settings.py
             epsilon=0.05,  # schemas.py L1396, used to index `POLYGON_EPSILON` in settings.py
             precision=2,  # `POLYGON_PRECISION` in settings.py
-            interiors=True,  # schemas.py L1378
+            interiors=False,  # schemas.py L1378
             convex_hull=False,  # schemas.py L1417
             include_altitude=True,  # grid.py L601
         )
