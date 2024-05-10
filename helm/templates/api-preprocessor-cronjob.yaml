@@ -13,8 +13,8 @@ spec:
   jobTemplate:
     spec:
       activeDeadlineSeconds: 5400  # 1.5 hrs
-      completions: 80  # MUST MATCH VALUE FROM parallelism
-      parallelism: 80  # MUST MATCH VALUE FROM completions
+      completions: 40  # MUST MATCH VALUE FROM parallelism
+      parallelism: 40  # MUST MATCH VALUE FROM completions
       backoffLimit: 10
       template:
         spec:
@@ -44,8 +44,8 @@ spec:
                   value: INFO
               resources:
                 requests:
-                  cpu: "1.25"
-                  memory: "5Gi"
+                  cpu: "4"
+                  memory: "16Gi"
                 limits:
-                  cpu: "1.25"
-                  memory: "5Gi"
+                  cpu: "4"
+                  memory: "16Gi"

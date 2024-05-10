@@ -35,7 +35,7 @@ from lib.log import format_traceback, logger
 from lib.schemas import ApiPreprocessorJob
 
 # oversubscribe dask workers
-pool = ThreadPoolExecutor(2)
+pool = ThreadPoolExecutor(4)
 dask.config.set(pool=pool)
 
 
