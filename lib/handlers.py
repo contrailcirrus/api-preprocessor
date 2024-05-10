@@ -8,10 +8,12 @@ import os
 import tempfile
 import threading
 from collections.abc import Callable, Iterator
+from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
 from typing import Any, Union
 
+import dask
 import gcsfs  # type: ignore
 import geojson  # type: ignore
 import google.api_core.exceptions
@@ -31,6 +33,10 @@ from pycontrails.physics import units
 from lib.exceptions import QueueEmptyError, ZarrStoreDownloadError
 from lib.log import format_traceback, logger
 from lib.schemas import ApiPreprocessorJob
+
+# oversubscribe dask workers
+pool = ThreadPoolExecutor(32)
+dask.config.set(pool=pool)
 
 
 class ValidationHandler:
