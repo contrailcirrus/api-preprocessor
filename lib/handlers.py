@@ -312,6 +312,7 @@ class CocipHandler:
             ds.to_netcdf(tmp.name, format="NETCDF4")
             fs = gcsfs.GCSFileSystem()
             fs.put(tmp.name, sink_path)
+        logger.info(f"netcdf grid written to gcs at: {sink_path}.")
 
     @staticmethod
     def _build_polygons(
