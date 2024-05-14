@@ -22,6 +22,7 @@ spec:
             # See compute optimization discussion:
             # https://github.com/contrailcirrus/api-preprocessor/issues/35#issuecomment-2040558780
             cloud.google.com/compute-class: "Balanced"
+            cloud.google.com/machine-type: "N2D"
           restartPolicy: Never
           serviceAccountName: api-preprocessor-k8s-default-sa
           # terminationGracePeriodSeconds should be greater than the time to
