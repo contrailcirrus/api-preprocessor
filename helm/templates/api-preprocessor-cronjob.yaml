@@ -21,8 +21,7 @@ spec:
           nodeSelector:
             # See compute optimization discussion:
             # https://github.com/contrailcirrus/api-preprocessor/issues/35#issuecomment-2040558780
-            cloud.google.com/compute-class: "Balanced"
-            cloud.google.com/machine-type: "N2D"
+            cloud.google.com/compute-class: "Scale-Out"
           restartPolicy: Never
           serviceAccountName: api-preprocessor-k8s-default-sa
           # terminationGracePeriodSeconds should be greater than the time to
@@ -45,8 +44,8 @@ spec:
                   value: INFO
               resources:
                 requests:
-                  cpu: "4"
-                  memory: "16Gi"
+                  cpu: "3"
+                  memory: "12Gi"
                 limits:
-                  cpu: "4"
-                  memory: "16Gi"
+                  cpu: "3"
+                  memory: "12Gi"
