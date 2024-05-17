@@ -13,8 +13,8 @@ spec:
   jobTemplate:
     spec:
       activeDeadlineSeconds: 5400  # 1.5 hrs
-      completions: 15  # MUST MATCH VALUE FROM parallelism
-      parallelism: 15  # MUST MATCH VALUE FROM completions
+      completions: 100  # MUST MATCH VALUE FROM parallelism
+      parallelism: 100  # MUST MATCH VALUE FROM completions
       backoffLimit: 10
       template:
         spec:
