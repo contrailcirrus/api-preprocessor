@@ -9,12 +9,12 @@ import tempfile
 import threading
 from collections.abc import Callable, Iterator
 
-# from concurrent.futures import ThreadPoolExecutor
+from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
 from typing import Any, Union
 
-# import dask
+import dask
 import gcsfs  # type: ignore
 import geojson  # type: ignore
 import google.api_core.exceptions
@@ -36,8 +36,8 @@ from lib.log import format_traceback, logger
 from lib.schemas import ApiPreprocessorJob
 
 # oversubscribe dask workers
-# pool = ThreadPoolExecutor(3)
-# dask.config.set(pool=pool)
+pool = ThreadPoolExecutor(8)
+dask.config.set(pool=pool)
 
 
 class ValidationHandler:
