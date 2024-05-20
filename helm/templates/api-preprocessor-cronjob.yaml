@@ -47,5 +47,5 @@ spec:
                   cpu: "3"
                   memory: "12Gi"
                 limits:
-                  cpu: "2"
+                  cpu: "3"
                   memory: "12Gi"
