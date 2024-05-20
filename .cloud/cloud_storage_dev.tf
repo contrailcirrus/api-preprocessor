@@ -22,7 +22,7 @@ resource "google_storage_bucket" "api_preprocessor_bucket_dev" {
   }
   lifecycle_rule {
   condition {
-    age = 2
+    age = 30
   }
   action {
     type = "Delete"
