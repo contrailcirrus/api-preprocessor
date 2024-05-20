@@ -2,13 +2,13 @@
 # Google Cloud Storage (GCS) resources
 # ------------------------------------
 
-resource "google_storage_bucket" "api_preprocessor_bucket_dev" {
+resource "google_storage_bucket" "api_preprocessor_bucket_prod" {
   default_event_based_hold    = false
   enable_object_retention     = false
   force_destroy               = false
   labels                      = {}
   location                    = "US-EAST1"
-  name                        = "contrails-301217-api-preprocessor-dev"
+  name                        = "contrails-301217-api-preprocessor-prod"
   project                     = "contrails-301217"
   public_access_prevention    = "enforced"
   requester_pays              = false
@@ -20,13 +20,5 @@ resource "google_storage_bucket" "api_preprocessor_bucket_dev" {
     read   = null
     update = null
   }
-  lifecycle_rule {
-  condition {
-    age = 30
-  }
-  action {
-    type = "Delete"
-  }
-}
 }
 
