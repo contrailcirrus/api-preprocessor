@@ -3,7 +3,6 @@
 import hashlib
 from dataclasses import dataclass, asdict
 import json
-from typing import Literal
 
 
 @dataclass
@@ -61,8 +60,8 @@ class ApiPreprocessorJob:
 
     model_run_at: int
     model_predicted_at: int
-    flight_level: Literal[*FLIGHT_LEVELS]
-    aircraft_class: Literal[*AIRCRAFT_CLASSES.keys()]
+    flight_level: int
+    aircraft_class: str
 
     def as_utf8_json(self) -> bytes:
         """
