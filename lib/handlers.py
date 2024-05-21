@@ -103,16 +103,16 @@ class CocipHandler:
 
     AIRCRAFT_CLASSES = {
         "low_e": {
-            "aircraft_type_icao": "",
-            "engine_uid": "",
+            "aircraft_type_icao": "B789",
+            "engine_uid": "01P17GE211",
         },
         "default": {
-            "aircraft_type_icao": "",
-            "engine_uid": "",
+            "aircraft_type_icao": "B738",
+            "engine_uid": "01P11CM116",
         },
         "high_e": {
-            "aircraft_type_icao": "",
-            "engine_uid": "",
+            "aircraft_type_icao": "A320",
+            "engine_uid": "01P10IA021",
         },
     }
 
@@ -307,10 +307,8 @@ class CocipHandler:
             met=met,
             rad=rad,
             aircraft_performance=PSGrid(),
-            attrs=dict(
-                aircraft_type=aircraft_attrs["aircraft_type_icao"],
-                engine_uid=aircraft_attrs["engine_uid"],
-            ),
+            aircraft_type=aircraft_attrs["aircraft_type_icao"],
+            engine_uid=aircraft_attrs["engine_uid"],
             **cls.PROVISIONAL_STATIC_PARAMS,
         )
 
