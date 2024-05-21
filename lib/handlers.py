@@ -101,21 +101,6 @@ class CocipHandler:
     REGIONS_THRESHOLDS = [5e8, 1e8, 1e7]
     MAX_AGE_HR = 12
 
-    AIRCRAFT_CLASSES = {
-        "low_e": {
-            "aircraft_type_icao": "B789",
-            "engine_uid": "01P17GE211",
-        },
-        "default": {
-            "aircraft_type_icao": "B738",
-            "engine_uid": "01P11CM116",
-        },
-        "high_e": {
-            "aircraft_type_icao": "A320",
-            "engine_uid": "01P10IA021",
-        },
-    }
-
     def __init__(
         self,
         hres_source_path: str,
@@ -301,7 +286,7 @@ class CocipHandler:
         cls, met: MetDataset, rad: MetDataset, aircraft_class: str
     ) -> CocipGrid:
 
-        aircraft_attrs = cls.AIRCRAFT_CLASSES[aircraft_class]
+        aircraft_attrs = ApiPreprocessorJob.AIRCRAFT_CLASSES[aircraft_class]
 
         return CocipGrid(
             met=met,
