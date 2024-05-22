@@ -3,7 +3,6 @@
 import hashlib
 from dataclasses import dataclass, asdict
 import json
-from typing import Literal
 
 
 @dataclass
@@ -44,14 +43,25 @@ class ApiPreprocessorJob:
     ]
 
     # predefined aircraft classes
-    AIRCRAFT_CLASSES = [
-        "default",
-    ]
+    AIRCRAFT_CLASSES = {
+        "low_e": {
+            "aircraft_type_icao": "B789",
+            "engine_uid": "01P17GE211",
+        },
+        "default": {
+            "aircraft_type_icao": "B738",
+            "engine_uid": "01P11CM116",
+        },
+        "high_e": {
+            "aircraft_type_icao": "A320",
+            "engine_uid": "01P10IA021",
+        },
+    }
 
     model_run_at: int
     model_predicted_at: int
-    flight_level: Literal[*FLIGHT_LEVELS]
-    aircraft_class: Literal[*AIRCRAFT_CLASSES]
+    flight_level: int
+    aircraft_class: str
 
     def as_utf8_json(self) -> bytes:
         """

@@ -80,7 +80,6 @@ class CocipHandler:
     Handler for managing ingress of HRES data, cocip data product rendering, and data egress.
     """
 
-    # TODO: finalize values
     PROVISIONAL_STATIC_PARAMS = dict(
         humidity_scaling=ExponentialBoostLatitudeCorrectionHumidityScaling(),
         dt_integration="5min",
@@ -286,13 +285,15 @@ class CocipHandler:
     def _create_cocip_grid_model(
         cls, met: MetDataset, rad: MetDataset, aircraft_class: str
     ) -> CocipGrid:
-        # TODO: set relevant parameters based on aircraft class
-        # Logic for setting per-class parameters should probably live in pycontrails,
-        # but doesn't exist yet
+
+        aircraft_attrs = ApiPreprocessorJob.AIRCRAFT_CLASSES[aircraft_class]
+
         return CocipGrid(
             met=met,
             rad=rad,
             aircraft_performance=PSGrid(),
+            aircraft_type=aircraft_attrs["aircraft_type_icao"],
+            engine_uid=aircraft_attrs["engine_uid"],
             **cls.PROVISIONAL_STATIC_PARAMS,
         )
 
