@@ -336,6 +336,7 @@ class CocipHandler:
             interiors=False,  # schemas.py L1378
             convex_hull=False,  # schemas.py L1417
             include_altitude=True,  # grid.py L601
+            lower_bound=True if threshold > 0 else False,
         )
         logger.info(f"building polygon for threshold: {threshold}")
         poly = ef_per_m.to_polygon_feature(**params)
