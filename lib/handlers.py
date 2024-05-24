@@ -148,7 +148,7 @@ class CocipHandler:
             (
                 f"{regions_sink_path}"
                 f"/{job.aircraft_class}/{job.model_predicted_at}_{job.flight_level}/"
-                f"{offset_hrs}/{thres}.geojson"
+                f"{offset_hrs}/{thres:.0f}.geojson"
             )
             for thres in self.REGIONS_THRESHOLDS
         ]
