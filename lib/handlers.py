@@ -98,7 +98,7 @@ class CocipHandler:
         met_level_buffer=(20, 20),
     )
 
-    REGIONS_THRESHOLDS = [5e8, 1e8, 1e7]
+    REGIONS_THRESHOLDS = [-1, 1, 1e7, 2.5e7, 5e7, 7.5e7, 1e8, 2.5e8, 5e8, 7.5e8, 1e9]
     MAX_AGE_HR = 12
 
     def __init__(
@@ -336,6 +336,7 @@ class CocipHandler:
             interiors=False,  # schemas.py L1378
             convex_hull=False,  # schemas.py L1417
             include_altitude=True,  # grid.py L601
+            lower_bound=True if threshold > 0 else False,
         )
         logger.info(f"building polygon for threshold: {threshold}")
         poly = ef_per_m.to_polygon_feature(**params)
