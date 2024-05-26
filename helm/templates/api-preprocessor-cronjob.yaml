@@ -9,6 +9,7 @@ spec:
   timeZone: "Etc/UTC"
   concurrencyPolicy: Forbid
   startingDeadlineSeconds: 1800
+  suspend: {{ .Values.suspendCronjob | required ".Values.suspendCronjob is required" }}
   failedJobsHistoryLimit: 6
   jobTemplate:
     spec:

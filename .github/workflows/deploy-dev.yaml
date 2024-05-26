@@ -60,3 +60,4 @@ jobs:
           SINK_PATH: gs://contrails-301217-api-preprocessor-dev
           API_PREPROCESSOR_SUBSCRIPTION_ID: projects/contrails-301217/subscriptions/dev-mpl-api-preprocessor-sub
           COCIP_REGIONS_BQ_TOPIC_ID: projects/contrails-301217/topics/dev-mpl-api-preprocessor-cocip-regions-bigquery
+          SUSPEND_CRONJOB: true

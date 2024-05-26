@@ -9,3 +9,6 @@ sinkPath:
 apiPreprocessorSubscriptionId:
 
 cocipRegionsBqTopicId:
+
+# state of the cronjob
+suspendCronjob:
