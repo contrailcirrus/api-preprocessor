@@ -1,9 +1,9 @@
-name: deploy-dev
+name: deploy-prod
 
 on:
   push:
     branches:
-      - develop
+      - main
 
 # avoid possible race condition on multiple merges
 concurrency:
@@ -45,8 +45,8 @@ jobs:
           context: "."
           push: true
           tags: |
-            us-east1-docker.pkg.dev/contrails-301217/api-preprocessor/api-preprocessor-dev:${{ github.sha }}
-            us-east1-docker.pkg.dev/contrails-301217/api-preprocessor/api-preprocessor-dev:latest
+            us-east1-docker.pkg.dev/contrails-301217/api-preprocessor/api-preprocessor-prod:${{ github.sha }}
+            us-east1-docker.pkg.dev/contrails-301217/api-preprocessor/api-preprocessor-prod:latest
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
@@ -54,10 +54,10 @@ jobs:
         working-directory: helm/
         run: make deploy
         env:
-          NAMESPACE: api-preprocessor-dev
-          IMAGE: us-east1-docker.pkg.dev/contrails-301217/api-preprocessor/api-preprocessor-dev:${{ github.sha }}
+          NAMESPACE: api-preprocessor-prod
+          IMAGE: us-east1-docker.pkg.dev/contrails-301217/api-preprocessor/api-preprocessor-prod:${{ github.sha }}
           SOURCE_PATH: gs://contrails-301217-ecmwf-hres-forecast-v2-short-term
-          SINK_PATH: gs://contrails-301217-api-preprocessor-dev
-          API_PREPROCESSOR_SUBSCRIPTION_ID: projects/contrails-301217/subscriptions/dev-mpl-api-preprocessor-sub
-          COCIP_REGIONS_BQ_TOPIC_ID: projects/contrails-301217/topics/dev-mpl-api-preprocessor-cocip-regions-bigquery
-          SUSPEND_CRONJOB: true
+          SINK_PATH: gs://contrails-301217-api-preprocessor-prod
+          API_PREPROCESSOR_SUBSCRIPTION_ID: projects/contrails-301217/subscriptions/prod-mpl-api-preprocessor-sub
+          COCIP_REGIONS_BQ_TOPIC_ID: projects/contrails-301217/topics/prod-mpl-api-preprocessor-cocip-regions-bigquery
+          SUSPEND_CRONJOB: false

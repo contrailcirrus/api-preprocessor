@@ -1,0 +1,52 @@
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: api-preprocessor
+  labels:
+    app: api-preprocessor
+spec:
+  schedule: "0 3,9,15,21 * * *"
+  timeZone: "Etc/UTC"
+  concurrencyPolicy: Forbid
+  startingDeadlineSeconds: 1800
+  suspend: {{ .Values.suspendCronjob | required ".Values.suspendCronjob is required" }}
+  failedJobsHistoryLimit: 6
+  jobTemplate:
+    spec:
+      activeDeadlineSeconds: 5400  # 1.5 hrs
+      completions: 120  # MUST MATCH VALUE FROM parallelism
+      parallelism: 120  # MUST MATCH VALUE FROM completions
+      backoffLimit: 10
+      template:
+        spec:
+          nodeSelector:
+            # See compute optimization discussion:
+            # https://github.com/contrailcirrus/api-preprocessor/issues/35#issuecomment-2040558780
+            cloud.google.com/compute-class: "Scale-Out"
+          restartPolicy: Never
+          serviceAccountName: api-preprocessor-k8s-default-sa
+          # terminationGracePeriodSeconds should be greater than the time to
+          # perform a single job iteration. When a SIGTERM is received, the job
+          # has this much time to gracefully exit before being killed.
+          terminationGracePeriodSeconds: 600 # max value accepted
+          containers:
+            - name: api-preprocessor
+              image: {{ .Values.image | required ".Values.image is required" | quote }}
+              env:
+                - name: SOURCE_PATH
+                  value: {{ .Values.sourcePath | required ".Values.sourcePath is required" | quote }}
+                - name: SINK_PATH
+                  value: {{ .Values.sinkPath | required ".Values.sinkPath is required" | quote }}
+                - name: API_PREPROCESSOR_SUBSCRIPTION_ID
+                  value: {{ .Values.apiPreprocessorSubscriptionId | required ".Values.apiPreprocessorSubscriptionId is required" | quote }}
+                - name: COCIP_REGIONS_BQ_TOPIC_ID
+                  value: {{ .Values.cocipRegionsBqTopicId | required ".Values.cocipRegionsBqTopicId is required" | quote }}
+                - name: LOG_LEVEL
+                  value: INFO
+              resources:
+                requests:
+                  cpu: "2"
+                  memory: "8Gi"
+                limits:
+                  cpu: "2"
+                  memory: "8Gi"

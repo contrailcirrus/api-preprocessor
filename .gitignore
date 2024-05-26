@@ -5,6 +5,13 @@
 # IDEs
 .DS_Store
 .idea/
+.vscode/
 
 # build
 __pycache__/
+
+# python development artifacts
+.venv
+
+# local environment
+.env
