@@ -23,7 +23,7 @@ spec:
             # See compute optimization discussion:
             # https://github.com/contrailcirrus/api-preprocessor/issues/35#issuecomment-2040558780
             cloud.google.com/compute-class: "Scale-Out"
-          restartPolicy: Never
+          restartPolicy: OnFailure
           serviceAccountName: api-preprocessor-k8s-default-sa
           # terminationGracePeriodSeconds should be greater than the time to
           # perform a single job iteration. When a SIGTERM is received, the job
