@@ -16,7 +16,7 @@ spec:
       activeDeadlineSeconds: 5400  # 1.5 hrs
       completions: 360  # MUST MATCH VALUE FROM parallelism
       parallelism: 360  # MUST MATCH VALUE FROM completions
-      backoffLimit: 10
+      backoffLimit: 100
       template:
         spec:
           nodeSelector:
