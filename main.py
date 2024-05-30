@@ -55,7 +55,14 @@ def run(
             f"{env.SINK_PATH}/regions",
         )
         cocip_handler.read()
-        cocip_handler.compute()
+        try:
+            cocip_handler.compute()
+        except Exception:
+            logger.error(
+                f"failed to compute {job.model_predicted_at}. {format_traceback()}"
+            )
+            job_handler.ack(message)
+            continue
         cocip_handler.write()
 
         # ===================
