@@ -63,7 +63,7 @@ def run(
                 f"traceback: {format_traceback()}"
             )
             job_handler.ack(message)
-            sys.exit(0)
+            continue
         cocip_handler.write()
 
         # ===================
