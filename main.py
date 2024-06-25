@@ -55,7 +55,15 @@ def run(
             f"{env.SINK_PATH}/regions",
         )
         cocip_handler.read()
-        cocip_handler.compute()
+        try:
+            cocip_handler.compute()
+        except Exception:
+            logger.error(
+                f"failed to compute cocip grid. skipping... job: {job}. "
+                f"traceback: {format_traceback()}"
+            )
+            job_handler.ack(message)
+            sys.exit(0)
         cocip_handler.write()
 
         # ===================
