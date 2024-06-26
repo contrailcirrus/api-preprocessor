@@ -21,7 +21,7 @@ OUTPUT_FILE = (
 )
 
 
-name_fmt = "T1S{model_run_at}00{model_predicted_at}001"
+name_fmt = "T1S{model_run_at}00{model_predicted_at}0{is_zero_step}1"
 ecmwf_fnames = []
 model_run_at_dt = datetime.fromtimestamp(MODEL_RUN_AT, UTC)
 
@@ -35,6 +35,7 @@ for dt in predicted_at:
     ecmwf_fn = name_fmt.format(
         model_run_at=model_run_at_dt.strftime("%m%d%H"),
         model_predicted_at=dt,
+        is_zero_step=(1 if dt == model_run_at_dt.strftime("%m%d%H") else 0),
     )
     ecmwf_fnames.append(ecmwf_fn)
 
