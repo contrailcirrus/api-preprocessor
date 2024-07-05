@@ -311,6 +311,38 @@ class CocipHandler:
         # then transfer the result to the cloud bucket
         with tempfile.NamedTemporaryFile(delete_on_close=False) as tmp:
             tmp.close()
+            # minify netcdf content saved to disk
+            ds_attrs = list(ds.attrs.keys())
+            for k in ds_attrs:
+                # prune dataset-level attributes
+                del ds.attrs[k]
+            # drop extraneous coords
+            req_coords = {"time", "level", "latitude", "longitude"}
+            for name, _ in ds.coords.items():
+                if name not in req_coords:
+                    ds = ds.drop_vars(name)
+
+            # drop extraneous data vars
+            req_data_vars = {"ef_per_m"}
+            for name, _ in ds.data_vars.items():
+                if name not in req_data_vars:
+                    ds = ds.drop_vars(name)
+
+            # cast lat and lon from float64 -> float32
+            ds.coords["longitude"] = ds.coords["longitude"].astype("float32")
+            ds.coords["latitude"] = ds.coords["latitude"].astype("float32")
+
+            # snap level coordinate to nearest standardized value, and cast as int16
+            fl = ds.coords["level"].to_numpy()
+            if len(fl) > 1:
+                raise ValueError(
+                    f"too many flight levels in CoCip grid. got {len(fl)} levels"
+                )
+            fl_std = min(
+                ApiPreprocessorJob.FLIGHT_LEVELS, key=lambda lv: abs(lv - fl[0])
+            )
+            ds.coords["level"] = np.array([fl_std]).astype("int16")
+
             ds.to_netcdf(tmp.name, format="NETCDF4")
             fs = gcsfs.GCSFileSystem()
             fs.put(tmp.name, sink_path)
