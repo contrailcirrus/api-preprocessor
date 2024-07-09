@@ -303,8 +303,7 @@ class CocipHandler:
             if value is None:
                 result.data.attrs[key] = "None"
 
-    @staticmethod
-    def _save_nc4(ds: xr.Dataset, sink_path: str) -> None:
+    def _save_nc4(self, ds: xr.Dataset, sink_path: str) -> None:
         # Can only save as netcdf3 with file-like objects:
         # https://docs.xarray.dev/en/stable/generated/xarray.Dataset.to_netcdf.html.
         # We want netcdf4, so have to save to a temporary file using its path,
@@ -322,6 +321,14 @@ class CocipHandler:
                 if name not in req_coords:
                     ds = ds.drop_vars(name)
 
+            # convert vertical coordinates to flight_level
+            ds = ds.rename({"level": "flight_level"})
+            # assign vertical dimension value to flight level
+            # note: this step will also drop any pre-existing attrs that were assigned to 'level'
+            ds.coords["flight_level"] = np.array([self.job.flight_level]).astype(
+                "int16"
+            )
+
             # drop extraneous data vars
             req_data_vars = {"ef_per_m"}
             for name, _ in ds.data_vars.items():
@@ -331,17 +338,6 @@ class CocipHandler:
             # cast lat and lon from float64 -> float32
             ds.coords["longitude"] = ds.coords["longitude"].astype("float32")
             ds.coords["latitude"] = ds.coords["latitude"].astype("float32")
-
-            # snap level coordinate to nearest standardized value, and cast as int16
-            fl = ds.coords["level"].to_numpy()
-            if len(fl) > 1:
-                raise ValueError(
-                    f"too many flight levels in CoCip grid. got {len(fl)} levels"
-                )
-            fl_std = min(
-                ApiPreprocessorJob.FLIGHT_LEVELS, key=lambda lv: abs(lv - fl[0])
-            )
-            ds.coords["level"] = np.array([fl_std]).astype("int16")
 
             ds.to_netcdf(tmp.name, format="NETCDF4")
             fs = gcsfs.GCSFileSystem()
