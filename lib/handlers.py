@@ -303,14 +303,42 @@ class CocipHandler:
             if value is None:
                 result.data.attrs[key] = "None"
 
-    @staticmethod
-    def _save_nc4(ds: xr.Dataset, sink_path: str) -> None:
+    def _save_nc4(self, ds: xr.Dataset, sink_path: str) -> None:
         # Can only save as netcdf3 with file-like objects:
         # https://docs.xarray.dev/en/stable/generated/xarray.Dataset.to_netcdf.html.
         # We want netcdf4, so have to save to a temporary file using its path,
         # then transfer the result to the cloud bucket
         with tempfile.NamedTemporaryFile(delete_on_close=False) as tmp:
             tmp.close()
+            # minify netcdf content saved to disk
+            ds_attrs = list(ds.attrs.keys())
+            for k in ds_attrs:
+                # prune dataset-level attributes
+                del ds.attrs[k]
+            # drop extraneous coords
+            req_coords = {"time", "level", "latitude", "longitude"}
+            for name, _ in ds.coords.items():
+                if name not in req_coords:
+                    ds = ds.drop_vars(name)
+
+            # convert vertical coordinates to flight_level
+            ds = ds.rename({"level": "flight_level"})
+            # assign vertical dimension value to flight level
+            # note: this step will also drop any pre-existing attrs that were assigned to 'level'
+            ds.coords["flight_level"] = np.array([self.job.flight_level]).astype(
+                "int16"
+            )
+
+            # drop extraneous data vars
+            req_data_vars = {"ef_per_m"}
+            for name, _ in ds.data_vars.items():
+                if name not in req_data_vars:
+                    ds = ds.drop_vars(name)
+
+            # cast lat and lon from float64 -> float32
+            ds.coords["longitude"] = ds.coords["longitude"].astype("float32")
+            ds.coords["latitude"] = ds.coords["latitude"].astype("float32")
+
             ds.to_netcdf(tmp.name, format="NETCDF4")
             fs = gcsfs.GCSFileSystem()
             fs.put(tmp.name, sink_path)
