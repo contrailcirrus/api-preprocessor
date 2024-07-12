@@ -335,6 +335,13 @@ class CocipHandler:
                 if name not in req_data_vars:
                     ds = ds.drop_vars(name)
 
+            # nan-fill grid at poles (80S-, 80N+)
+            lat = ds["latitude"].to_numpy()
+            lat = np.concatenate(
+                (np.arange(-90, -80, 0.25), lat, np.arange(80.25, 90.25, 0.25))
+            )
+            ds.coords["latitude"] = lat
+
             # cast lat and lon from float64 -> float32
             ds.coords["longitude"] = ds.coords["longitude"].astype("float32")
             ds.coords["latitude"] = ds.coords["latitude"].astype("float32")
