@@ -339,6 +339,9 @@ class CocipHandler:
             ds.coords["longitude"] = ds.coords["longitude"].astype("float32")
             ds.coords["latitude"] = ds.coords["latitude"].astype("float32")
 
+            # reorder dimensions and variables (optics change only)
+            ds = ds[["longitude", "latitude", "flight_level", "time", "ef_per_m"]]
+
             ds.to_netcdf(tmp.name, format="NETCDF4")
             fs = gcsfs.GCSFileSystem()
             fs.put(tmp.name, sink_path)
