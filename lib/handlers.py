@@ -371,7 +371,7 @@ class CocipHandler:
         )
         logger.info(f"building polygon for threshold: {threshold}")
         poly = ef_per_m.to_polygon_feature(**params)
-        return geojson.FeatureCollection(poly)
+        return geojson.FeatureCollection([poly])
 
     @staticmethod
     def _save_geojson(fc: geojson.FeatureCollection, sink_path: str) -> None:
