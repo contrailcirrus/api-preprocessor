@@ -228,7 +228,7 @@ class CocipHandler:
         poly: geojson.FeatureCollection
         out: list[tuple[int, str]] = []
         for thres, poly in zip(self.REGIONS_THRESHOLDS, self._polygons):
-            feature_geom = dict(poly.features["geometry"])
+            feature_geom = dict(poly.features[0]["geometry"])
             # remove third positional element in each point (lon, lat, alt)
             for polygon in feature_geom["coordinates"]:
                 for linestring in polygon:
@@ -371,7 +371,7 @@ class CocipHandler:
         )
         logger.info(f"building polygon for threshold: {threshold}")
         poly = ef_per_m.to_polygon_feature(**params)
-        return geojson.FeatureCollection(poly)
+        return geojson.FeatureCollection([poly])
 
     @staticmethod
     def _save_geojson(fc: geojson.FeatureCollection, sink_path: str) -> None:
