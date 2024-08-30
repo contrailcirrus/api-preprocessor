@@ -101,10 +101,6 @@ class CocipHandler:
     REGIONS_THRESHOLDS = [-1, 1, 1e7, 2.5e7, 5e7, 7.5e7, 1e8, 2.5e8, 5e8, 7.5e8, 1e9]
     MAX_AGE_HR = 12
 
-    # value in ApiPreprocessorJob().flight_level
-    # that indicates that CoCip should be run across all fls
-    ALL_FLIGHT_LEVELS_WILDCARD = -1
-
     def __init__(
         self,
         hres_source_path: str,
@@ -150,7 +146,7 @@ class CocipHandler:
         # {<fl>: {<thres>: <gcs_path>}}
         self.regions_gcs_sink_paths: dict[int, dict[int, str]] = dict()
 
-        if self.job.flight_level == self.ALL_FLIGHT_LEVELS_WILDCARD:
+        if self.job.flight_level == ApiPreprocessorJob.ALL_FLIGHT_LEVELS_WILDCARD:
             for fl in ApiPreprocessorJob.FLIGHT_LEVELS:
                 self.grids_gcs_sink_paths.update(
                     {
@@ -313,7 +309,7 @@ class CocipHandler:
         dtype = np.float64
         longitude = np.arange(-180, 180, hor_res, dtype=dtype)
         latitude = np.arange(-80, 80.01, hor_res, dtype=dtype)
-        if flight_level == self.ALL_FLIGHT_LEVELS_WILDCARD:
+        if flight_level == ApiPreprocessorJob.ALL_FLIGHT_LEVELS_WILDCARD:
             altitude_ft = [fl * 100.0 for fl in ApiPreprocessorJob.FLIGHT_LEVELS]
             level = [units.ft_to_pl(alt_ft) for alt_ft in altitude_ft]
             return MetDataset.from_coords(
