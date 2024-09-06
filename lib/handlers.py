@@ -155,13 +155,11 @@ class CocipHandler:
                     }
                 )
                 for thres in self.REGIONS_THRESHOLDS:
-                    self.regions_gcs_sink_paths.update(
+                    self.regions_gcs_sink_paths[fl].update(
                         {
-                            fl: {
-                                thres: f"{regions_sink_path}/{job.aircraft_class}/"
-                                f"{job.model_predicted_at}_{fl}/"
-                                f"{offset_hrs}/{thres:.0f}.geojson"
-                            }
+                            thres: f"{regions_sink_path}/{job.aircraft_class}/"
+                            f"{job.model_predicted_at}_{fl}/"
+                            f"{offset_hrs}/{thres:.0f}.geojson"
                         }
                     )
         else:
@@ -171,14 +169,13 @@ class CocipHandler:
                     f"{job.model_predicted_at}_{job.flight_level}/{offset_hrs}.nc"
                 }
             )
+            self.regions_gcs_sink_paths.update({job.flight_level: dict()})
             for thres in self.REGIONS_THRESHOLDS:
-                self.regions_gcs_sink_paths.update(
+                self.regions_gcs_sink_paths[job.flight_level].update(
                     {
-                        job.flight_level: {
-                            thres: f"{regions_sink_path}/{job.aircraft_class}/"
-                            f"{job.model_predicted_at}_{job.flight_level}/"
-                            f"{offset_hrs}/{thres:.0f}.geojson"
-                        }
+                        thres: f"{regions_sink_path}/{job.aircraft_class}/"
+                        f"{job.model_predicted_at}_{job.flight_level}/"
+                        f"{offset_hrs}/{thres:.0f}.geojson"
                     }
                 )
 
