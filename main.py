@@ -35,6 +35,15 @@ def run(
 
         job = schemas.ApiPreprocessorJob.from_utf8_json(message.data)
 
+        # TODO: remove bridge
+        # temp code to bridge deployment to new logic
+        if (job.flight_level != 270) and (
+            job.flight_level != job.ALL_FLIGHT_LEVELS_WILDCARD
+        ):
+            logger.info(f"got fl {job.flight_level}. skipping.")
+            job_handler.ack(message)
+            continue
+
         # ===================
         # validate work
         # ===================
@@ -69,19 +78,20 @@ def run(
         # ===================
         # publish regions geojson to BQ
         # ===================
-        for thres, geo in cocip_handler.regions:
-            blob = schemas.RegionsBigQuery(
-                aircraft_class=job.aircraft_class,
-                flight_level=job.flight_level,
-                timestamp=job.model_predicted_at,
-                hres_model_run_at=job.model_run_at,
-                threshold=thres,
-                regions=geo,
-            )
-            bq_publish_handler.publish_async(
-                data=blob.to_bq_flatmap(),
-                timeout_seconds=45,
-            )
+        for fl, thres_lookup in cocip_handler.regions.items():
+            for thres, geo in thres_lookup.items():
+                blob = schemas.RegionsBigQuery(
+                    aircraft_class=job.aircraft_class,
+                    flight_level=fl,
+                    timestamp=job.model_predicted_at,
+                    hres_model_run_at=job.model_run_at,
+                    threshold=thres,
+                    regions=geo,
+                )
+                bq_publish_handler.publish_async(
+                    data=blob.to_bq_flatmap(),
+                    timeout_seconds=45,
+                )
         bq_publish_handler.wait_for_publish(timeout_seconds=60)
 
         job_handler.ack(message)
