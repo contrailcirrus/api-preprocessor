@@ -236,6 +236,8 @@ class CocipHandler:
             )
 
         for fl, gcs_grid_path in self.grids_gcs_sink_paths.items():
+            # TODO: remove logging
+            logger.info(f"writing grid to: {gcs_grid_path}")
             self._save_nc4(
                 self._cocip_grid.data.sel(level=units.ft_to_pl(fl * 100.0)),
                 gcs_grid_path,
@@ -243,6 +245,7 @@ class CocipHandler:
 
         for fl, thres_lookup in self.regions_gcs_sink_paths.items():
             for thres, gcs_region_path in thres_lookup.items():
+                logger.info(f"writing geojson to: {gcs_region_path}")
                 self._save_geojson(self._polygons[fl][thres], gcs_region_path)
 
     @property
