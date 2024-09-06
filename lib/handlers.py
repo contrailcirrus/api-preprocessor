@@ -238,6 +238,7 @@ class CocipHandler:
             self._save_nc4(
                 self._cocip_grid.data.sel(level=[units.ft_to_pl(fl * 100.0)]),
                 gcs_grid_path,
+                fl,
             )  # complicated---see comments in helper function
 
         for fl, thres_lookup in self.regions_gcs_sink_paths.items():
@@ -350,7 +351,7 @@ class CocipHandler:
             if value is None:
                 result.data.attrs[key] = "None"
 
-    def _save_nc4(self, ds: xr.Dataset, sink_path: str) -> None:
+    def _save_nc4(self, ds: xr.Dataset, sink_path: str, flight_level: int) -> None:
         # Can only save as netcdf3 with file-like objects:
         # https://docs.xarray.dev/en/stable/generated/xarray.Dataset.to_netcdf.html.
         # We want netcdf4, so have to save to a temporary file using its path,
@@ -372,9 +373,7 @@ class CocipHandler:
             ds = ds.rename({"level": "flight_level"})
             # assign vertical dimension value to flight level
             # note: this step will also drop any pre-existing attrs that were assigned to 'level'
-            ds.coords["flight_level"] = np.array([self.job.flight_level]).astype(
-                "int16"
-            )
+            ds.coords["flight_level"] = np.array([flight_level]).astype("int16")
 
             # drop extraneous data vars
             req_data_vars = {"ef_per_m"}
