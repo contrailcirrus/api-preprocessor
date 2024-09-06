@@ -46,8 +46,8 @@ spec:
                   value: INFO
               resources:
                 requests:
-                  cpu: "1.25"
-                  memory: "8Gi"
+                  cpu: "5"
+                  memory: "32Gi"
                 limits:
-                  cpu: "1.25"
-                  memory: "8Gi"
+                  cpu: "5"
+                  memory: "32Gi"
