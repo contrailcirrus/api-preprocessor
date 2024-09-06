@@ -35,6 +35,15 @@ def run(
 
         job = schemas.ApiPreprocessorJob.from_utf8_json(message.data)
 
+        # TODO: remove bridge
+        # temp code to bridge deployment to new logic
+        if (job.flight_level != 270) and (
+            job.flight_level != job.ALL_FLIGHT_LEVELS_WILDCARD
+        ):
+            logger.info(f"got fl {job.flight_level}. skipping.")
+            job_handler.ack(message)
+            continue
+
         # ===================
         # validate work
         # ===================
