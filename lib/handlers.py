@@ -125,7 +125,7 @@ class CocipHandler:
         """
         self._hres_datasets: None | tuple[MetDataset, MetDataset] = None
         self._cocip_grid: None | MetDataset = None
-        self._polygons: None | dict[int, dict[int, geojson.FeatureCollection]] = None
+        self._polygons: dict[int, dict[int, geojson.FeatureCollection]] = dict()
 
         self.hres_source_path = hres_source_path
         self.job = job
