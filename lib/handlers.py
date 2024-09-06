@@ -217,7 +217,7 @@ class CocipHandler:
             for thres in self.regions_gcs_sink_paths[fl].keys():
                 level = units.ft_to_pl(fl * 100.0)
                 poly = self._build_polygons(
-                    result.data.sel(level=level)["ef_per_m"],
+                    result.data.sel(level=[level])["ef_per_m"],
                     thres,
                 )
                 self._polygons.update({fl: {thres: poly}})
@@ -239,7 +239,7 @@ class CocipHandler:
             # TODO: remove logging
             logger.info(f"writing grid to: {gcs_grid_path}")
             self._save_nc4(
-                self._cocip_grid.data.sel(level=units.ft_to_pl(fl * 100.0)),
+                self._cocip_grid.data.sel(level=[units.ft_to_pl(fl * 100.0)]),
                 gcs_grid_path,
             )  # complicated---see comments in helper function
 
