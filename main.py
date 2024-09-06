@@ -37,9 +37,7 @@ def run(
 
         # TODO: remove bridge
         # temp code to bridge deployment to new logic
-        if (job.flight_level != 270) and (
-            job.flight_level != job.ALL_FLIGHT_LEVELS_WILDCARD
-        ):
+        if job.flight_level != job.ALL_FLIGHT_LEVELS_WILDCARD:
             logger.info(f"got fl {job.flight_level}. skipping.")
             job_handler.ack(message)
             continue
