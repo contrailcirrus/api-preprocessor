@@ -154,6 +154,7 @@ class CocipHandler:
                         f"{job.model_predicted_at}_{fl}/{offset_hrs}.nc"
                     }
                 )
+                self.regions_gcs_sink_paths.update({fl: dict()})
                 for thres in self.REGIONS_THRESHOLDS:
                     self.regions_gcs_sink_paths[fl].update(
                         {
