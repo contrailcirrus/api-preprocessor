@@ -212,13 +212,14 @@ class CocipHandler:
         logger.info("done evaluating cocip grid model.")
 
         for fl in self.regions_gcs_sink_paths.keys():
+            self._polygons.update({fl: dict()})
             for thres in self.regions_gcs_sink_paths[fl].keys():
                 level = units.ft_to_pl(fl * 100.0)
                 poly = self._build_polygons(
                     result.data.sel(level=[level])["ef_per_m"],
                     thres,
                 )
-                self._polygons.update({fl: {thres: poly}})
+                self._polygons[fl].update({thres: poly})
 
     def write(self):
         """
