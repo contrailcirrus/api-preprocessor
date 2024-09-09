@@ -215,6 +215,7 @@ class CocipHandler:
             self._polygons.update({fl: dict()})
             for thres in self.regions_gcs_sink_paths[fl].keys():
                 level = units.ft_to_pl(fl * 100.0)
+                logger.info(f"building polygon for fl: {fl}, threshold: {thres}")
                 poly = self._build_polygons(
                     result.data.sel(level=[level])["ef_per_m"],
                     thres,
@@ -235,8 +236,6 @@ class CocipHandler:
             )
 
         for fl, gcs_grid_path in self.grids_gcs_sink_paths.items():
-            # TODO: remove logging
-            logger.info(f"writing grid to: {gcs_grid_path}")
             self._save_nc4(
                 self._cocip_grid.data.sel(level=[units.ft_to_pl(fl * 100.0)]),
                 gcs_grid_path,
@@ -417,7 +416,6 @@ class CocipHandler:
             include_altitude=True,  # grid.py L601
             lower_bound=True if threshold > 0 else False,
         )
-        logger.info(f"building polygon for threshold: {threshold}")
         mda_ef_per_m = MetDataArray(da_ef_per_m)
         poly = mda_ef_per_m.to_polygon_feature(**params)
         return geojson.FeatureCollection([poly])

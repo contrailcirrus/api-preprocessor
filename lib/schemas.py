@@ -43,8 +43,7 @@ class ApiPreprocessorJob:
     ]
 
     # flight_level value that indicates that CoCip should be run across all fls
-    # TODO: remove bridge; return wildcard to -1
-    ALL_FLIGHT_LEVELS_WILDCARD = 270
+    ALL_FLIGHT_LEVELS_WILDCARD = -1
 
     # predefined aircraft classes
     AIRCRAFT_CLASSES = {
