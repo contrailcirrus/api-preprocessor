@@ -9,8 +9,6 @@ import json
 class ApiPreprocessorJob:
     """
     Defines the data model for messages published to the pubsub topic for the API Preprocessor.
-    Consumers of these jobs include:
-      - api-preprocessor worker (generates gridded data output and regions data output)
 
     Fields:
       - model_run_at: unixtime at which model was executed
