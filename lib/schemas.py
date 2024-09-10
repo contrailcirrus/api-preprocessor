@@ -40,6 +40,9 @@ class ApiPreprocessorJob:
         440,
     ]
 
+    # flight_level value that indicates that CoCip should be run across all fls
+    ALL_FLIGHT_LEVELS_WILDCARD = -1
+
     # predefined aircraft classes
     AIRCRAFT_CLASSES = {
         "low_e": {

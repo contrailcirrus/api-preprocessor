@@ -12,7 +12,7 @@ from collections.abc import Callable, Iterator
 from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
-from typing import Any, Union
+from typing import Any
 
 import dask
 import gcsfs  # type: ignore
@@ -123,9 +123,9 @@ class CocipHandler:
             fully-qualified base path for writing cocip regions geojson output
             e.g. 'gs://contrails-301217-api-preprocessor-dev/regions'
         """
-        self._hres_datasets: Union[None, tuple[MetDataset, MetDataset]] = None
-        self._cocip_grid: Union[None, MetDataset] = None
-        self._polygons: Union[None, list[geojson.FeatureCollection]] = None
+        self._hres_datasets: None | tuple[MetDataset, MetDataset] = None
+        self._cocip_grid: None | MetDataset = None
+        self._polygons: dict[int, dict[int, geojson.FeatureCollection]] = dict()
 
         self.hres_source_path = hres_source_path
         self.job = job
@@ -140,18 +140,45 @@ class CocipHandler:
         )
 
         offset_hrs = (job.model_predicted_at - job.model_run_at) // 3600
-        self.grids_gcs_sink_path = (
-            f"{grids_sink_path}/{job.aircraft_class}"
-            f"/{job.model_predicted_at}_{job.flight_level}/{offset_hrs}.nc"
-        )
-        self.regions_gcs_sink_path = [
-            (
-                f"{regions_sink_path}"
-                f"/{job.aircraft_class}/{job.model_predicted_at}_{job.flight_level}/"
-                f"{offset_hrs}/{thres:.0f}.geojson"
+
+        # {<fl>: <gcs_path>}
+        self.grids_gcs_sink_paths: dict[int, str] = dict()
+        # {<fl>: {<thres>: <gcs_path>}}
+        self.regions_gcs_sink_paths: dict[int, dict[int, str]] = dict()
+
+        if self.job.flight_level == ApiPreprocessorJob.ALL_FLIGHT_LEVELS_WILDCARD:
+            for fl in ApiPreprocessorJob.FLIGHT_LEVELS:
+                self.grids_gcs_sink_paths.update(
+                    {
+                        fl: f"{grids_sink_path}/{job.aircraft_class}/"
+                        f"{job.model_predicted_at}_{fl}/{offset_hrs}.nc"
+                    }
+                )
+                self.regions_gcs_sink_paths.update({fl: dict()})
+                for thres in self.REGIONS_THRESHOLDS:
+                    self.regions_gcs_sink_paths[fl].update(
+                        {
+                            thres: f"{regions_sink_path}/{job.aircraft_class}/"
+                            f"{job.model_predicted_at}_{fl}/"
+                            f"{offset_hrs}/{thres:.0f}.geojson"
+                        }
+                    )
+        else:
+            self.grids_gcs_sink_paths.update(
+                {
+                    job.flight_level: f"{grids_sink_path}/{job.aircraft_class}/"
+                    f"{job.model_predicted_at}_{job.flight_level}/{offset_hrs}.nc"
+                }
             )
-            for thres in self.REGIONS_THRESHOLDS
-        ]
+            self.regions_gcs_sink_paths.update({job.flight_level: dict()})
+            for thres in self.REGIONS_THRESHOLDS:
+                self.regions_gcs_sink_paths[job.flight_level].update(
+                    {
+                        thres: f"{regions_sink_path}/{job.aircraft_class}/"
+                        f"{job.model_predicted_at}_{job.flight_level}/"
+                        f"{offset_hrs}/{thres:.0f}.geojson"
+                    }
+                )
 
     def read(self):
         """
@@ -184,11 +211,16 @@ class CocipHandler:
         self._cocip_grid = result
         logger.info("done evaluating cocip grid model.")
 
-        polys = [
-            self._build_polygons(result["ef_per_m"], thres)
-            for thres in self.REGIONS_THRESHOLDS
-        ]
-        self._polygons = polys
+        for fl in self.regions_gcs_sink_paths.keys():
+            self._polygons.update({fl: dict()})
+            for thres in self.regions_gcs_sink_paths[fl].keys():
+                level = units.ft_to_pl(fl * 100.0)
+                logger.info(f"building polygon for fl: {fl}, threshold: {thres}")
+                poly = self._build_polygons(
+                    result.data.sel(level=[level])["ef_per_m"],
+                    thres,
+                )
+                self._polygons[fl].update({thres: poly})
 
     def write(self):
         """
@@ -203,19 +235,25 @@ class CocipHandler:
                 "missing polygon data. please run compute() to generate polygons"
             )
 
-        self._save_nc4(
-            self._cocip_grid.data, self.grids_gcs_sink_path
-        )  # complicated---see comments in helper function
+        for fl, gcs_grid_path in self.grids_gcs_sink_paths.items():
+            self._save_nc4(
+                self._cocip_grid.data.sel(level=[units.ft_to_pl(fl * 100.0)]),
+                gcs_grid_path,
+                fl,
+            )  # complicated---see comments in helper function
 
-        for poly, path in zip(self._polygons, self.regions_gcs_sink_path):
-            self._save_geojson(poly, path)
+        for fl, thres_lookup in self.regions_gcs_sink_paths.items():
+            for thres, gcs_region_path in thres_lookup.items():
+                logger.info(f"writing geojson to: {gcs_region_path}")
+                self._save_geojson(self._polygons[fl][thres], gcs_region_path)
 
     @property
-    def regions(self) -> None | list[tuple[int, str]]:
+    def regions(self) -> None | dict[int, dict[int, str]]:
         """
-        Each returned tuple contains an integer (the threshold value, one of REGIONS_THRESHOLD),
-        and a string representation of a geojson MultiPolygon object, which itemizes all CoCip
-        polygons for the given flight level (flight level defined at the ApiProcessor.Job level).
+        Response contains a mapping {<fl>: {<thres>: <poly>}},
+        where fl and thres are flight level and threshold, respectively.
+        The <poly> is a string representation of a geojson MultiPolygon object,
+        which itemizes all CoCip polygons for the given flight level .
 
         Altitude (third coordinate position) is removed from the points in the MultiPolygon.
         Three positional elements are not supported in BigQuery
@@ -224,18 +262,20 @@ class CocipHandler:
         if not self._polygons:
             return None
 
+        fl: int
         thres: int
         poly: geojson.FeatureCollection
-        out: list[tuple[int, str]] = []
-        for thres, poly in zip(self.REGIONS_THRESHOLDS, self._polygons):
-            feature_geom = dict(poly.features[0]["geometry"])
-            # remove third positional element in each point (lon, lat, alt)
-            for polygon in feature_geom["coordinates"]:
-                for linestring in polygon:
-                    for coord in linestring:
-                        coord.pop()
-            feature_str = json.dumps(feature_geom)
-            out.append((thres, feature_str))
+        out: dict[int, dict[int, str]] = dict()
+        for fl, thres_lookup in self._polygons.items():
+            for thres, poly in thres_lookup.items():
+                feature_geom = dict(poly.features[0]["geometry"])
+                # remove third positional element in each point (lon, lat, alt)
+                for polygon in feature_geom["coordinates"]:
+                    for linestring in polygon:
+                        for coord in linestring:
+                            coord.pop()
+                feature_str = json.dumps(feature_geom)
+                out.update({fl: {thres: feature_str}})
         return out
 
     @staticmethod
@@ -266,20 +306,29 @@ class CocipHandler:
         rad.standardize_variables(variables)
         return met, rad
 
-    @staticmethod
-    def _create_cocip_grid_source(t: datetime, flight_level: int) -> MetDataset:
+    def _create_cocip_grid_source(self, t: datetime, flight_level: int) -> MetDataset:
         hor_res = 0.25
         dtype = np.float64
         longitude = np.arange(-180, 180, hor_res, dtype=dtype)
         latitude = np.arange(-80, 80.01, hor_res, dtype=dtype)
-        altitude_ft = flight_level * 100.0
-        level = units.ft_to_pl(altitude_ft)
-        return MetDataset.from_coords(
-            longitude=longitude,
-            latitude=latitude,
-            level=level,
-            time=t,
-        )
+        if flight_level == ApiPreprocessorJob.ALL_FLIGHT_LEVELS_WILDCARD:
+            altitude_ft = [fl * 100.0 for fl in ApiPreprocessorJob.FLIGHT_LEVELS]
+            level = [units.ft_to_pl(alt_ft) for alt_ft in altitude_ft]
+            return MetDataset.from_coords(
+                longitude=longitude,
+                latitude=latitude,
+                level=level,
+                time=t,
+            )
+        else:
+            altitude_ft = flight_level * 100.0
+            level = units.ft_to_pl(altitude_ft)
+            return MetDataset.from_coords(
+                longitude=longitude,
+                latitude=latitude,
+                level=level,
+                time=t,
+            )
 
     @classmethod
     def _create_cocip_grid_model(
@@ -303,7 +352,7 @@ class CocipHandler:
             if value is None:
                 result.data.attrs[key] = "None"
 
-    def _save_nc4(self, ds: xr.Dataset, sink_path: str) -> None:
+    def _save_nc4(self, ds: xr.Dataset, sink_path: str, flight_level: int) -> None:
         # Can only save as netcdf3 with file-like objects:
         # https://docs.xarray.dev/en/stable/generated/xarray.Dataset.to_netcdf.html.
         # We want netcdf4, so have to save to a temporary file using its path,
@@ -325,9 +374,7 @@ class CocipHandler:
             ds = ds.rename({"level": "flight_level"})
             # assign vertical dimension value to flight level
             # note: this step will also drop any pre-existing attrs that were assigned to 'level'
-            ds.coords["flight_level"] = np.array([self.job.flight_level]).astype(
-                "int16"
-            )
+            ds.coords["flight_level"] = np.array([flight_level]).astype("int16")
 
             # drop extraneous data vars
             req_data_vars = {"ef_per_m"}
@@ -349,7 +396,7 @@ class CocipHandler:
 
     @staticmethod
     def _build_polygons(
-        ef_per_m: MetDataArray, threshold: int
+        da_ef_per_m: xr.DataArray, threshold: int
     ) -> geojson.FeatureCollection:
         # parameters for building polygons are defaults from /v0 API; see
         # https://github.com/contrailcirrus/contrails-api/blob/bd8b0a8a858be2852346c35316c7cdc96ac65a2f/app/schemas.py
@@ -369,8 +416,8 @@ class CocipHandler:
             include_altitude=True,  # grid.py L601
             lower_bound=True if threshold > 0 else False,
         )
-        logger.info(f"building polygon for threshold: {threshold}")
-        poly = ef_per_m.to_polygon_feature(**params)
+        mda_ef_per_m = MetDataArray(da_ef_per_m)
+        poly = mda_ef_per_m.to_polygon_feature(**params)
         return geojson.FeatureCollection([poly])
 
     @staticmethod
