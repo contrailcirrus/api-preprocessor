@@ -80,7 +80,7 @@ class CocipHandler:
     Handler for managing ingress of HRES data, cocip data product rendering, and data egress.
     """
 
-    PROVISIONAL_STATIC_PARAMS = dict(
+    STATIC_PARAMS = dict(
         humidity_scaling=ExponentialBoostLatitudeCorrectionHumidityScaling(),
         dt_integration="5min",
         target_split_size=100_000,
@@ -343,7 +343,7 @@ class CocipHandler:
             aircraft_performance=PSGrid(),
             aircraft_type=aircraft_attrs["aircraft_type_icao"],
             engine_uid=aircraft_attrs["engine_uid"],
-            **cls.PROVISIONAL_STATIC_PARAMS,
+            **cls.STATIC_PARAMS,
         )
 
     @staticmethod
@@ -415,6 +415,7 @@ class CocipHandler:
             convex_hull=False,  # schemas.py L1417
             include_altitude=True,  # grid.py L601
             lower_bound=True if threshold > 0 else False,
+            simplify=10,  # max simplification
         )
         mda_ef_per_m = MetDataArray(da_ef_per_m)
         poly = mda_ef_per_m.to_polygon_feature(**params)
