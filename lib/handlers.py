@@ -408,14 +408,13 @@ class CocipHandler:
         params = dict(
             fill_value=0.0,  # grid.py L602
             iso_value=threshold,  # polygon threshold set by `threshold` parameter
-            min_area=0.3,  # schemas.py L1396, used to index `POLYGON_MIN_AREA` in settings.py
-            epsilon=0.05,  # schemas.py L1396, used to index `POLYGON_EPSILON` in settings.py
+            min_area=1.0,  # setting for simplify level 10, settings.POLYGON_EPSILON[simplify]
+            epsilon=0.5,  # setting for simplify level 10, settings.POLYGON_MIN_AREA[simplify]
             precision=2,  # `POLYGON_PRECISION` in settings.py
             interiors=False,  # schemas.py L1378
             convex_hull=False,  # schemas.py L1417
             include_altitude=True,  # grid.py L601
             lower_bound=True if threshold > 0 else False,
-            simplify=10,  # max simplification
         )
         mda_ef_per_m = MetDataArray(da_ef_per_m)
         poly = mda_ef_per_m.to_polygon_feature(**params)
