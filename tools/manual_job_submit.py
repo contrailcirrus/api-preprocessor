@@ -10,7 +10,6 @@ This may/should be turned into a Makefile or CLI tool.
 
 from lib.handlers import PubSubPublishHandler
 from lib.schemas import ApiPreprocessorJob
-from datetime import datetime
 
 API_PREPROCESSOR_JOB_PUBSUB_TOPIC_ID = (
     "projects/contrails-301217/topics/dev-mpl-api-parcel-topic"
@@ -21,136 +20,80 @@ pub_handler = PubSubPublishHandler(
     ordered_queue=False,
 )
 
-model_run_at_dtstr = "2024-05-09T06:00:00Z"
-model_predicted_at_dtstr = "2024-05-09T08:00:00Z"
+model_run_at = 1726466400
+flight_level = -1
+aircraft_class = "default"
 
-targets = [
-    {
-        "flight_level": 310,
-        "threshold": 500000000,
-        "model_run_at": "2024-05-08T00:00:00Z",
-        "model_predicted_at": "2024-05-08T00:00:00Z",
-    },
-    {
-        "flight_level": 310,
-        "threshold": 500000000,
-        "model_run_at": "2024-05-08T00:00:00Z",
-        "model_predicted_at": "2024-05-08T01:00:00Z",
-    },
-    {
-        "flight_level": 310,
-        "threshold": 500000000,
-        "model_run_at": "2024-05-08T00:00:00Z",
-        "model_predicted_at": "2024-05-08T02:00:00Z",
-    },
-    {
-        "flight_level": 310,
-        "threshold": 500000000,
-        "model_run_at": "2024-05-08T00:00:00Z",
-        "model_predicted_at": "2024-05-08T03:00:00Z",
-    },
-    {
-        "flight_level": 310,
-        "threshold": 500000000,
-        "model_run_at": "2024-05-08T00:00:00Z",
-        "model_predicted_at": "2024-05-08T04:00:00Z",
-    },
-    {
-        "flight_level": 310,
-        "threshold": 500000000,
-        "model_run_at": "2024-05-08T00:00:00Z",
-        "model_predicted_at": "2024-05-08T05:00:00Z",
-    },
-    {
-        "flight_level": 310,
-        "threshold": 500000000,
-        "model_run_at": "2024-05-08T06:00:00Z",
-        "model_predicted_at": "2024-05-08T06:00:00Z",
-    },
-    {
-        "flight_level": 310,
-        "threshold": 500000000,
-        "model_run_at": "2024-05-08T06:00:00Z",
-        "model_predicted_at": "2024-05-08T07:00:00Z",
-    },
-    {
-        "flight_level": 310,
-        "threshold": 500000000,
-        "model_run_at": "2024-05-08T06:00:00Z",
-        "model_predicted_at": "2024-05-08T08:00:00Z",
-    },
-    {
-        "flight_level": 310,
-        "threshold": 500000000,
-        "model_run_at": "2024-05-08T06:00:00Z",
-        "model_predicted_at": "2024-05-08T09:00:00Z",
-    },
-    {
-        "flight_level": 310,
-        "threshold": 500000000,
-        "model_run_at": "2024-05-08T06:00:00Z",
-        "model_predicted_at": "2024-05-08T10:00:00Z",
-    },
-    {
-        "flight_level": 310,
-        "threshold": 500000000,
-        "model_run_at": "2024-05-08T06:00:00Z",
-        "model_predicted_at": "2024-05-08T11:00:00Z",
-    },
-    {
-        "flight_level": 310,
-        "threshold": 500000000,
-        "model_run_at": "2024-05-08T12:00:00Z",
-        "model_predicted_at": "2024-05-08T12:00:00Z",
-    },
-    {
-        "flight_level": 310,
-        "threshold": 500000000,
-        "model_run_at": "2024-05-08T12:00:00Z",
-        "model_predicted_at": "2024-05-08T13:00:00Z",
-    },
-    {
-        "flight_level": 310,
-        "threshold": 500000000,
-        "model_run_at": "2024-05-08T12:00:00Z",
-        "model_predicted_at": "2024-05-08T14:00:00Z",
-    },
-    {
-        "flight_level": 310,
-        "threshold": 500000000,
-        "model_run_at": "2024-05-08T12:00:00Z",
-        "model_predicted_at": "2024-05-08T15:00:00Z",
-    },
-    {
-        "flight_level": 310,
-        "threshold": 500000000,
-        "model_run_at": "2024-05-08T12:00:00Z",
-        "model_predicted_at": "2024-05-08T16:00:00Z",
-    },
-    {
-        "flight_level": 310,
-        "threshold": 500000000,
-        "model_run_at": "2024-05-08T12:00:00Z",
-        "model_predicted_at": "2024-05-08T17:00:00Z",
-    },
-    {
-        "flight_level": 310,
-        "threshold": 500000000,
-        "model_run_at": "2024-05-08T18:00:00Z",
-        "model_predicted_at": "2024-05-08T18:00:00Z",
-    },
+model_predicted_at = [
+    1726477200,
+    1726470000,
+    1726639200,
+    1726473600,
+    1726502400,
+    1726480800,
+    1726484400,
+    1726498800,
+    1726495200,
+    1726488000,
+    1726563600,
+    1726506000,
+    1726531200,
+    1726527600,
+    1726524000,
+    1726534800,
+    1726538400,
+    1726513200,
+    1726567200,
+    1726560000,
+    1726574400,
+    1726585200,
+    1726581600,
+    1726509600,
+    1726491600,
+    1726556400,
+    1726520400,
+    1726599600,
+    1726610400,
+    1726552800,
+    1726516800,
+    1726542000,
+    1726617600,
+    1726545600,
+    1726549200,
+    1726621200,
+    1726624800,
+    1726614000,
+    1726606800,
+    1726653600,
+    1726646400,
+    1726657200,
+    1726650000,
+    1726664400,
+    1726570800,
+    1726578000,
+    1726588800,
+    1726592400,
+    1726596000,
+    1726603200,
+    1726671600,
+    1726668000,
+    1726660800,
+    1726675200,
+    1726678800,
+    1726628400,
+    1726642800,
+    1726632000,
+    1726635600,
 ]
 
-for target in targets:
-    mra = target["model_run_at"]
-    mpa = target["model_predicted_at"]
-    fl = target["flight_level"]
+for target in model_predicted_at:
     job = ApiPreprocessorJob(
-        model_run_at=int(datetime.fromisoformat(mra).timestamp()),
-        model_predicted_at=int(datetime.fromisoformat(mpa).timestamp()),
-        flight_level=fl,
-        aircraft_class="default",
+        model_run_at=model_run_at,
+        model_predicted_at=target,
+        flight_level=flight_level,
+        aircraft_class=aircraft_class,
     )
+    print(job.as_utf8_json())
 
     pub_handler.publish_async(
         data=job.as_utf8_json(),
