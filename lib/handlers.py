@@ -82,7 +82,7 @@ class CocipHandler:
 
     STATIC_PARAMS = dict(
         humidity_scaling=ExponentialBoostLatitudeCorrectionHumidityScaling(),
-        dt_integration="5min",
+        dt_integration=np.timedelta64(5, "m"),
         target_split_size=100_000,
         target_split_size_pre_SAC_boost=2.5,
         max_altitude_m=None,
@@ -204,7 +204,7 @@ class CocipHandler:
             *self._hres_datasets, self.job.aircraft_class
         )
         logger.info("evaluating cocip grid model.")
-        result = model.eval(source, max_age=self._max_age)
+        result = model.eval(source, max_age=np.timedelta64(self._max_age))
         self._fix_attrs(
             result
         )  # serialization as netcdf fails if any attributes are None,
