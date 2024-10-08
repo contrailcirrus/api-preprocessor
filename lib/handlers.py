@@ -441,6 +441,9 @@ class CocipHandler:
             ds.coords["longitude"] = ds.coords["longitude"].astype("float32")
             ds.coords["latitude"] = ds.coords["latitude"].astype("float32")
 
+            # guarantee that `ef_per_m` is float32
+            ds["ef_per_m"] = ds["ef_per_m"].astype("float32")
+
             # drop any non-target data vars (i.e. anything other than `ef_per_m`
             # and, reorder dimensions and variables (optics change only)
             ds = ds[["longitude", "latitude", "flight_level", "time", "ef_per_m"]]
@@ -489,6 +492,9 @@ class CocipHandler:
             # cast lat and lon from float64 -> float32
             ds.coords["longitude"] = ds.coords["longitude"].astype("float32")
             ds.coords["latitude"] = ds.coords["latitude"].astype("float32")
+
+            # guarantee that `contrails` is float32
+            ds["contrails"] = ds["contrails"].astype("float32")
 
             # drop any non-target data vars (i.e. anything other than `contrails`
             # and, reorder dimensions and variables (optics change only)
