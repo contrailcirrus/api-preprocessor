@@ -435,7 +435,7 @@ class CocipHandler:
             ds = ds.rename({"level": "flight_level"})
             # assign vertical dimension value to flight level
             # note: this step will also drop any pre-existing attrs that were assigned to 'level'
-            ds.coords["flight_level"] = np.array([flight_level]).astype("int16")
+            ds.coords["flight_level"] = np.array([flight_level], dtype="int16")
 
             # cast lat and lon from float64 -> float32
             ds.coords["longitude"] = ds.coords["longitude"].astype("float32")
@@ -487,7 +487,7 @@ class CocipHandler:
             ds = ds.rename({"level": "flight_level"})
             # assign vertical dimension value to flight level
             # note: this step will also drop any pre-existing attrs that were assigned to 'level'
-            ds.coords["flight_level"] = np.array([flight_level]).astype("int16")
+            ds.coords["flight_level"] = np.array([flight_level], dtype="int16")
 
             # cast lat and lon from float64 -> float32
             ds.coords["longitude"] = ds.coords["longitude"].astype("float32")
