@@ -437,17 +437,12 @@ class CocipHandler:
             # note: this step will also drop any pre-existing attrs that were assigned to 'level'
             ds.coords["flight_level"] = np.array([flight_level]).astype("int16")
 
-            # drop extraneous data vars
-            req_data_vars = {"ef_per_m"}
-            for name, _ in ds.data_vars.items():
-                if name not in req_data_vars:
-                    ds = ds.drop_vars(name)
-
             # cast lat and lon from float64 -> float32
             ds.coords["longitude"] = ds.coords["longitude"].astype("float32")
             ds.coords["latitude"] = ds.coords["latitude"].astype("float32")
 
-            # reorder dimensions and variables (optics change only)
+            # drop any non-target data vars (i.e. anything other than `ef_per_m`
+            # and, reorder dimensions and variables (optics change only)
             ds = ds[["longitude", "latitude", "flight_level", "time", "ef_per_m"]]
 
             ds.to_netcdf(tmp.name, format="NETCDF4")
@@ -491,17 +486,12 @@ class CocipHandler:
             # note: this step will also drop any pre-existing attrs that were assigned to 'level'
             ds.coords["flight_level"] = np.array([flight_level]).astype("int16")
 
-            # drop extraneous data vars
-            req_data_vars = {"contrails"}
-            for name, _ in ds.data_vars.items():
-                if name not in req_data_vars:
-                    ds = ds.drop_vars(name)
-
             # cast lat and lon from float64 -> float32
             ds.coords["longitude"] = ds.coords["longitude"].astype("float32")
             ds.coords["latitude"] = ds.coords["latitude"].astype("float32")
 
-            # reorder dimensions and variables (optics change only)
+            # drop any non-target data vars (i.e. anything other than `contrails`
+            # and, reorder dimensions and variables (optics change only)
             ds = ds[["longitude", "latitude", "flight_level", "time", "contrails"]]
 
             ds.to_netcdf(tmp.name, format="NETCDF4")
