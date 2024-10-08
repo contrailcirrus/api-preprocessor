@@ -420,11 +420,10 @@ class CocipHandler:
         ds = copy.deepcopy(ds)
         with tempfile.NamedTemporaryFile(delete_on_close=False) as tmp:
             tmp.close()
+            # ----------
             # minify netcdf content saved to disk
-            ds_attrs = list(ds.attrs.keys())
-            for k in ds_attrs:
-                # prune dataset-level attributes
-                del ds.attrs[k]
+            # ----------
+            ds.attrs = {}
             # drop extraneous coords
             req_coords = {"time", "level", "latitude", "longitude"}
             for name, _ in ds.coords.items():
@@ -472,11 +471,10 @@ class CocipHandler:
         ds = copy.deepcopy(ds)
         with tempfile.NamedTemporaryFile(delete_on_close=False) as tmp:
             tmp.close()
+            # ----------
             # minify netcdf content saved to disk
-            ds_attrs = list(ds.attrs.keys())
-            for k in ds_attrs:
-                # prune dataset-level attributes
-                del ds.attrs[k]
+            # ----------
+            ds.attrs = {}
             # drop extraneous coords
             req_coords = {"time", "level", "latitude", "longitude"}
             for name, _ in ds.coords.items():
