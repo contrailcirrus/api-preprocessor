@@ -33,8 +33,20 @@ by a maximum assumed age for contrail evolution.
 For reference, see `ValidationHandler.sufficient_forecast_range()` in [lib/handlers.py](lib/handlers.py).
 
 `flight_level` defines the flight level on which to calculate the CoCip grid.
+The API Preprocessor may also be directed to run across all flight levels,
+if the `ApiPreprocessor.flight_level` parameter is set to the 
+`ApiPreprocessor.ALL_FLIGHTS_LEVEL_WILDCARD`, then the API Preprocessor will
+run CoCip across all flight levels.  The determination to run the API Preprocessor
+on a single fl or across all fls depends on how the implementer wishes to manage
+concurrency when implementing the API Preprocessor in-system.
+Note that the resource configuration (memory, vCPU) defined in the [service's k8s yaml](helm/templates/api-preprocessor-cronjob.yaml)
+are currently set assuming the API Preprocessor is running across all flight levels 
+(i.e, it is currently set to higher memory and vCPU settings than if it were running on single fls).
 
-
+`aircraft_class` defines the friendly-name identifier for the aircraft configuration to use
+when running CoCip (passed to the aircraft performance model).
+At present, three aircraft classes are defined, each mapping to an aircraft body type and engine type.
+See `ApiPreprocessorJob.AIRCRAFT_CLASSES` in [schemas.py](lib/schemas.py).
 
 
 ## Environment Variables
