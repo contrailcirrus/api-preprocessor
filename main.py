@@ -52,6 +52,7 @@ def run(
             env.SOURCE_PATH,
             job,
             f"{env.SINK_PATH}/grids",
+            contrails_grids_sink_path=f"{env.SINK_PATH}/minified_grids"
             f"{env.SINK_PATH}/regions",
         )
         cocip_handler.read()

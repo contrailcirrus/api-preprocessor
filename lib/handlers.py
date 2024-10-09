@@ -3,6 +3,7 @@ Application handlers.
 """
 
 import concurrent.futures
+import copy
 import json
 import os
 import tempfile
@@ -98,14 +99,15 @@ class CocipHandler:
         met_level_buffer=(20, 20),
     )
 
-    REGIONS_THRESHOLDS = [-1, 1, 1e7, 2.5e7, 5e7, 7.5e7, 1e8, 2.5e8, 5e8, 7.5e8, 1e9]
+    REGIONS_THRESHOLDS = [1, 2, 3, 4]
     MAX_AGE_HR = 12
 
     def __init__(
         self,
         hres_source_path: str,
         job: ApiPreprocessorJob,
-        grids_sink_path: str,
+        ef_per_m_grids_sink_path: str,
+        contrails_grids_sink_path: str,
         regions_sink_path: str,
     ):
         """
@@ -116,8 +118,11 @@ class CocipHandler:
             e.g. 'gs://contrails-301217-ecmwf-hres-forecast-v2-short-term'
         job
             the API Preprocessor job to be processed by the handler
-        grids_sink_path
-            fully-qualified base path for writing cocip grid netcdf output
+        ef_per_m_grids_sink_path
+            fully-qualified base path for writing cocip grid ef_per_m netcdf output
+            e.g. 'gs://contrails-301217-api-preprocessor-dev/grids'
+        contrails_grids_sink_path
+            fully-qualified base path for writing cocip grid contrails netcdf output
             e.g. 'gs://contrails-301217-api-preprocessor-dev/grids'
         regions_sink_path
             fully-qualified base path for writing cocip regions geojson output
@@ -142,15 +147,23 @@ class CocipHandler:
         offset_hrs = (job.model_predicted_at - job.model_run_at) // 3600
 
         # {<fl>: <gcs_path>}
-        self.grids_gcs_sink_paths: dict[int, str] = dict()
+        self.grids_ef_per_m_gcs_sink_paths: dict[int, str] = dict()
+        # {<fl>: <gcs_path>}
+        self.grids_contrails_gcs_sink_paths: dict[int, str] = dict()
         # {<fl>: {<thres>: <gcs_path>}}
         self.regions_gcs_sink_paths: dict[int, dict[int, str]] = dict()
 
         if self.job.flight_level == ApiPreprocessorJob.ALL_FLIGHT_LEVELS_WILDCARD:
             for fl in ApiPreprocessorJob.FLIGHT_LEVELS:
-                self.grids_gcs_sink_paths.update(
+                self.grids_ef_per_m_gcs_sink_paths.update(
                     {
-                        fl: f"{grids_sink_path}/{job.aircraft_class}/"
+                        fl: f"{ef_per_m_grids_sink_path}/{job.aircraft_class}/"
+                        f"{job.model_predicted_at}_{fl}/{offset_hrs}.nc"
+                    }
+                )
+                self.grids_contrails_gcs_sink_paths.update(
+                    {
+                        fl: f"{contrails_grids_sink_path}/{job.aircraft_class}/"
                         f"{job.model_predicted_at}_{fl}/{offset_hrs}.nc"
                     }
                 )
@@ -164,9 +177,15 @@ class CocipHandler:
                         }
                     )
         else:
-            self.grids_gcs_sink_paths.update(
+            self.grids_ef_per_m_gcs_sink_paths.update(
                 {
-                    job.flight_level: f"{grids_sink_path}/{job.aircraft_class}/"
+                    job.flight_level: f"{ef_per_m_grids_sink_path}/{job.aircraft_class}/"
+                    f"{job.model_predicted_at}_{job.flight_level}/{offset_hrs}.nc"
+                }
+            )
+            self.grids_contrails_gcs_sink_paths.update(
+                {
+                    job.flight_level: f"{contrails_grids_sink_path}/{job.aircraft_class}/"
                     f"{job.model_predicted_at}_{job.flight_level}/{offset_hrs}.nc"
                 }
             )
@@ -208,7 +227,7 @@ class CocipHandler:
         self._fix_attrs(
             result
         )  # serialization as netcdf fails if any attributes are None,
-        self._cocip_grid = result
+        self._cocip_grid = self._add_contrails_var(result)
         logger.info("done evaluating cocip grid model.")
 
         for fl in self.regions_gcs_sink_paths.keys():
@@ -217,7 +236,7 @@ class CocipHandler:
                 level = units.ft_to_pl(fl * 100.0)
                 logger.info(f"building polygon for fl: {fl}, threshold: {thres}")
                 poly = self._build_polygons(
-                    result.data.sel(level=[level])["ef_per_m"],
+                    self._cocip_grid.data.sel(level=[level])["contrails"],
                     thres,
                 )
                 self._polygons[fl].update({thres: poly})
@@ -235,13 +254,23 @@ class CocipHandler:
                 "missing polygon data. please run compute() to generate polygons"
             )
 
-        for fl, gcs_grid_path in self.grids_gcs_sink_paths.items():
-            self._save_nc4(
+        # write ef_per_m netcdf to gcs
+        for fl, gcs_ef_per_m_grid_path in self.grids_ef_per_m_gcs_sink_paths.items():
+            self._save_ef_per_m_nc4(
                 self._cocip_grid.data.sel(level=[units.ft_to_pl(fl * 100.0)]),
-                gcs_grid_path,
+                gcs_ef_per_m_grid_path,
                 fl,
             )  # complicated---see comments in helper function
 
+        # write contrails netcdf to gcs
+        for fl, gcs_contrails_grid_path in self.grids_contrails_gcs_sink_paths.items():
+            self._save_contrails_nc4(
+                self._cocip_grid.data.sel(level=[units.ft_to_pl(fl * 100.0)]),
+                gcs_contrails_grid_path,
+                fl,
+            )
+
+        # write polygons to gcs
         for fl, thres_lookup in self.regions_gcs_sink_paths.items():
             for thres, gcs_region_path in thres_lookup.items():
                 logger.info(f"writing geojson to: {gcs_region_path}")
@@ -306,7 +335,8 @@ class CocipHandler:
         rad.standardize_variables(variables)
         return met, rad
 
-    def _create_cocip_grid_source(self, t: datetime, flight_level: int) -> MetDataset:
+    @staticmethod
+    def _create_cocip_grid_source(t: datetime, flight_level: int) -> MetDataset:
         hor_res = 0.25
         dtype = np.float64
         longitude = np.arange(-180, 180, hor_res, dtype=dtype)
@@ -352,18 +382,48 @@ class CocipHandler:
             if value is None:
                 result.data.attrs[key] = "None"
 
-    def _save_nc4(self, ds: xr.Dataset, sink_path: str, flight_level: int) -> None:
+    @staticmethod
+    def _add_contrails_var(mds: MetDataset) -> MetDataset:
+        """
+        Takes a cocip grid model result.
+        Returns a cocip grid model result, mirroring input dataset structure,
+        but with an additional data variable (`contrails`) representing
+        a minification/mapping of ef_per_m to a domain agnostic unit.
+        """
+        mds = copy.deepcopy(mds)
+        mds["contrails"] = mds["ef_per_m"].data.clip(min=1e7, max=1e9)
+        mds["contrails"] = ((mds["contrails"].data - 1e7) / (1e9 - 1e7)) * 4
+
+        mds["contrails"].data.attrs = {
+            "long_name": "Contrail forcing index",
+            "units": "",
+            "valid_min": 0,
+            "valid_max": 4,
+        }
+        return mds
+
+    @staticmethod
+    def _save_ef_per_m_nc4(ds: xr.Dataset, sink_path: str, flight_level: int) -> None:
+        """
+        Saves cocip grid model result to gcs, on a per-flight level basis.
+
+        Also applies the following cleanup prior to write:
+        - drops extraneous coordinates
+        - drops all vars accept ef_per_m
+        - coverts vertical coordinate from level to flight_level
+        - performs datatype conversions to minify footprint
+        """
         # Can only save as netcdf3 with file-like objects:
         # https://docs.xarray.dev/en/stable/generated/xarray.Dataset.to_netcdf.html.
         # We want netcdf4, so have to save to a temporary file using its path,
         # then transfer the result to the cloud bucket
+        ds = copy.deepcopy(ds)
         with tempfile.NamedTemporaryFile(delete_on_close=False) as tmp:
             tmp.close()
+            # ----------
             # minify netcdf content saved to disk
-            ds_attrs = list(ds.attrs.keys())
-            for k in ds_attrs:
-                # prune dataset-level attributes
-                del ds.attrs[k]
+            # ----------
+            ds.attrs = {}
             # drop extraneous coords
             req_coords = {"time", "level", "latitude", "longitude"}
             for name, _ in ds.coords.items():
@@ -374,30 +434,77 @@ class CocipHandler:
             ds = ds.rename({"level": "flight_level"})
             # assign vertical dimension value to flight level
             # note: this step will also drop any pre-existing attrs that were assigned to 'level'
-            ds.coords["flight_level"] = np.array([flight_level]).astype("int16")
-
-            # drop extraneous data vars
-            req_data_vars = {"ef_per_m"}
-            for name, _ in ds.data_vars.items():
-                if name not in req_data_vars:
-                    ds = ds.drop_vars(name)
+            ds.coords["flight_level"] = np.array([flight_level], dtype="int16")
 
             # cast lat and lon from float64 -> float32
             ds.coords["longitude"] = ds.coords["longitude"].astype("float32")
             ds.coords["latitude"] = ds.coords["latitude"].astype("float32")
 
-            # reorder dimensions and variables (optics change only)
+            # guarantee that `ef_per_m` is float32
+            ds["ef_per_m"] = ds["ef_per_m"].astype("float32")
+
+            # drop any non-target data vars (i.e. anything other than `ef_per_m`
+            # and, reorder dimensions and variables (optics change only)
             ds = ds[["longitude", "latitude", "flight_level", "time", "ef_per_m"]]
 
             ds.to_netcdf(tmp.name, format="NETCDF4")
             fs = gcsfs.GCSFileSystem()
             fs.put(tmp.name, sink_path)
-        logger.info(f"netcdf grid written to gcs at: {sink_path}.")
+        logger.info(f"netcdf ef_per_m grid written to gcs at: {sink_path}.")
 
     @staticmethod
-    def _build_polygons(
-        da_ef_per_m: xr.DataArray, threshold: int
-    ) -> geojson.FeatureCollection:
+    def _save_contrails_nc4(ds: xr.Dataset, sink_path: str, flight_level: int) -> None:
+        """
+        Saves cocip grid model result (as contrails variable) to gcs,
+        on a per-flight level basis.
+
+        Also applies the following cleanup prior to write:
+        - drops extraneous coordinates
+        - drops all vars accept contrails
+        - coverts vertical coordinate from level to flight_level
+        - performs datatype conversions to minify footprint
+        """
+        # Can only save as netcdf3 with file-like objects:
+        # https://docs.xarray.dev/en/stable/generated/xarray.Dataset.to_netcdf.html.
+        # We want netcdf4, so have to save to a temporary file using its path,
+        # then transfer the result to the cloud bucket
+        ds = copy.deepcopy(ds)
+        with tempfile.NamedTemporaryFile(delete_on_close=False) as tmp:
+            tmp.close()
+            # ----------
+            # minify netcdf content saved to disk
+            # ----------
+            ds.attrs = {}
+            # drop extraneous coords
+            req_coords = {"time", "level", "latitude", "longitude"}
+            for name, _ in ds.coords.items():
+                if name not in req_coords:
+                    ds = ds.drop_vars(name)
+
+            # convert vertical coordinates to flight_level
+            ds = ds.rename({"level": "flight_level"})
+            # assign vertical dimension value to flight level
+            # note: this step will also drop any pre-existing attrs that were assigned to 'level'
+            ds.coords["flight_level"] = np.array([flight_level], dtype="int16")
+
+            # cast lat and lon from float64 -> float32
+            ds.coords["longitude"] = ds.coords["longitude"].astype("float32")
+            ds.coords["latitude"] = ds.coords["latitude"].astype("float32")
+
+            # guarantee that `contrails` is float32
+            ds["contrails"] = ds["contrails"].astype("float32")
+
+            # drop any non-target data vars (i.e. anything other than `contrails`
+            # and, reorder dimensions and variables (optics change only)
+            ds = ds[["longitude", "latitude", "flight_level", "time", "contrails"]]
+
+            ds.to_netcdf(tmp.name, format="NETCDF4")
+            fs = gcsfs.GCSFileSystem()
+            fs.put(tmp.name, sink_path)
+        logger.info(f"netcdf contrails grid written to gcs at: {sink_path}.")
+
+    @staticmethod
+    def _build_polygons(da: xr.DataArray, threshold: int) -> geojson.FeatureCollection:
         # parameters for building polygons are defaults from /v0 API; see
         # https://github.com/contrailcirrus/contrails-api/blob/bd8b0a8a858be2852346c35316c7cdc96ac65a2f/app/schemas.py
         # https://github.com/contrailcirrus/contrails-api/blob/bd8b0a8a858be2852346c35316c7cdc96ac65a2f/app/settings.py
@@ -416,8 +523,8 @@ class CocipHandler:
             include_altitude=True,  # grid.py L601
             lower_bound=True if threshold > 0 else False,
         )
-        mda_ef_per_m = MetDataArray(da_ef_per_m)
-        poly = mda_ef_per_m.to_polygon_feature(**params)
+        mda = MetDataArray(da)
+        poly = mda.to_polygon_feature(**params)
         return geojson.FeatureCollection([poly])
 
     @staticmethod
