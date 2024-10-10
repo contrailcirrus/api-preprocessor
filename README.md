@@ -1,5 +1,70 @@
 # api-preprocessor
 
+```mermaid
+---
+title: API Preprocessor
+---
+graph 
+    %% style
+    classDef operationStyle fill:#8f8e8c, stroke-dasharray: 5 5
+
+    %% services/processes
+    subgraph pub_sub1[PubSub - job delivery]
+        api_parcel_topic(api-parcel-topic)
+        api_parcel_sub(api-parcel-sub)
+        api_parcel_5xop[5x]:::operationStyle
+        api_parcel_sub_deadletter(api-parcel-deadletter)
+    end
+    style pub_sub1 fill:#0864C8
+    
+    subgraph k8s_1[Kubernetes]
+        subgraph api_preprocessor[cron: api-preprocessor]
+            worker_1(worker #1)
+            worker_2(worker #2)
+            worker_N(worker #N)
+        end
+        style api_preprocessor fill:#876800
+    end
+    style k8s_1 fill:#C88908
+
+    subgraph pub_sub2[PubSub - BQ delivery]
+        bq_delivery_topic(bq-delivery-topic)
+        bq_delivery_sub(bq-delivery-sub)
+        bq_delivery_15xop[15x]:::operationStyle
+        bq_delivery_sub_deadletter(bq-delivery-deadletter)
+    end
+    style pub_sub2 fill:#0864C8
+    
+    subgraph bigquery[BigQuery]
+        bq_regions_tb(table: regions aka polygons)
+    end
+    style bigquery fill:#7b06bf
+    
+    subgraph gcs[GCS]
+        gcs_regions_path[blobs: regions geojson blobs]
+        gcs_efpm_grids_path[blobs: ef_per_m netcdf blobs]
+        gcs_contrails_path[blobs: contrails netcdf blobs]
+    end
+    style gcs fill:#31bf06
+    
+    %% flow/associations
+    api_parcel_topic --> api_parcel_sub
+    api_parcel_sub -.- api_parcel_5xop
+    api_parcel_5xop -.- api_parcel_sub_deadletter
+    
+    api_parcel_sub --> api_preprocessor
+    api_preprocessor --> bq_delivery_topic
+    bq_delivery_topic --> bq_delivery_sub
+    bq_delivery_sub --> bq_regions_tb
+    bq_delivery_sub -.- bq_delivery_15xop
+    bq_delivery_15xop -.- bq_delivery_sub_deadletter
+    
+    api_preprocessor --> gcs_regions_path
+    api_preprocessor --> gcs_efpm_grids_path
+    api_preprocessor --> gcs_contrails_path
+
+```
+
 ## Overview
 The API Preprocessor runs the pycontrails CoCip grid model on HRES meteorological forecasts,
 and persists those assets to Google Cloud Storage (GCS) and BigQuery (BQ).
@@ -10,14 +75,13 @@ of the [pycontrails API](https://apidocs.contrails.org/#production-api-beta).
 The API Preprocessor is a Dockerized python application designed to be a worker service
 which consumes jobs from a job queue.
 
-A "job" is an `ApiPreprocessorJob`, and defined in [`lib/schemas.py](lib/schemas.py).
+A "job" is an `ApiPreprocessorJob`, and defined in [lib/schemas.py](lib/schemas.py).
 A job fully defines the work to be done by a single invocation of the API Preprocessor:
-```text
-- model_run_at: unixtime at which model was executed
-- model_predicted_at: unixtime at which model predicts outputs quantities
-- flight_level: the flight level for this job's unit of work
-- aircraft_class: the string literal defining the aircraft class
-```
+- `model_run_at`: unixtime at which model was executed
+- `model_predicted_at`: unixtime at which model predicts outputs quantities
+- `flight_level`: the flight level for this job's unit of work
+- `aircraft_class`: the string literal defining the aircraft class
+
 
 `model_run_at` defines the target HRES data source to use for running CoCip.
 Every six hours, ECMWF runs the HRES forecast model. The time at which this model is run
