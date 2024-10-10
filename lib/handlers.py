@@ -12,7 +12,7 @@ from collections.abc import Callable, Iterator
 
 from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timedelta, timezone, UTC
 from typing import Any
 
 import dask
@@ -260,6 +260,7 @@ class CocipHandler:
                 self._cocip_grid.data.sel(level=[units.ft_to_pl(fl * 100.0)]),
                 gcs_ef_per_m_grid_path,
                 fl,
+                self.job,
             )  # complicated---see comments in helper function
 
         # write contrails netcdf to gcs
@@ -268,6 +269,7 @@ class CocipHandler:
                 self._cocip_grid.data.sel(level=[units.ft_to_pl(fl * 100.0)]),
                 gcs_contrails_grid_path,
                 fl,
+                self.job,
             )
 
         # write polygons to gcs
@@ -403,7 +405,9 @@ class CocipHandler:
         return mds
 
     @staticmethod
-    def _save_ef_per_m_nc4(ds: xr.Dataset, sink_path: str, flight_level: int) -> None:
+    def _save_ef_per_m_nc4(
+        ds: xr.Dataset, sink_path: str, flight_level: int, job: ApiPreprocessorJob
+    ) -> None:
         """
         Saves cocip grid model result to gcs, on a per-flight level basis.
 
@@ -423,7 +427,12 @@ class CocipHandler:
             # ----------
             # minify netcdf content saved to disk
             # ----------
-            ds.attrs = {}
+            ds.attrs = {
+                "forecast_reference_time": datetime.fromtimestamp(
+                    job.model_run_at, tz=UTC
+                ).strftime("%Y-%m-%dT%H:%H:%SZ"),
+                "aircraft_class": job.aircraft_class,
+            }
             # drop extraneous coords
             req_coords = {"time", "level", "latitude", "longitude"}
             for name, _ in ds.coords.items():
@@ -456,7 +465,9 @@ class CocipHandler:
         logger.info(f"netcdf ef_per_m grid written to gcs at: {sink_path}.")
 
     @staticmethod
-    def _save_contrails_nc4(ds: xr.Dataset, sink_path: str, flight_level: int) -> None:
+    def _save_contrails_nc4(
+        ds: xr.Dataset, sink_path: str, flight_level: int, job: ApiPreprocessorJob
+    ) -> None:
         """
         Saves cocip grid model result (as contrails variable) to gcs,
         on a per-flight level basis.
@@ -477,7 +488,12 @@ class CocipHandler:
             # ----------
             # minify netcdf content saved to disk
             # ----------
-            ds.attrs = {}
+            ds.attrs = {
+                "forecast_reference_time": datetime.fromtimestamp(
+                    job.model_run_at, tz=UTC
+                ).strftime("%Y-%m-%dT%H:%H:%SZ"),
+                "aircraft_class": job.aircraft_class,
+            }
             # drop extraneous coords
             req_coords = {"time", "level", "latitude", "longitude"}
             for name, _ in ds.coords.items():
