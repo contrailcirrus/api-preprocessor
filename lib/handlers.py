@@ -447,6 +447,9 @@ class CocipHandler:
             # and, reorder dimensions and variables (optics change only)
             ds = ds[["longitude", "latitude", "flight_level", "time", "ef_per_m"]]
 
+            # compression reduces filesize by ~10x
+            ds["ef_per_m"].encoding.update({"zlib": True, "complevel": 1})
+
             ds.to_netcdf(tmp.name, format="NETCDF4")
             fs = gcsfs.GCSFileSystem()
             fs.put(tmp.name, sink_path)
@@ -497,6 +500,9 @@ class CocipHandler:
             # drop any non-target data vars (i.e. anything other than `contrails`
             # and, reorder dimensions and variables (optics change only)
             ds = ds[["longitude", "latitude", "flight_level", "time", "contrails"]]
+
+            # compression reduces filesize by ~10x
+            ds["contrails"].encoding.update({"zlib": True, "complevel": 1})
 
             ds.to_netcdf(tmp.name, format="NETCDF4")
             fs = gcsfs.GCSFileSystem()
