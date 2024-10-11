@@ -84,7 +84,9 @@ A job fully defines the work to be done by a single invocation of the API Prepro
 
 `model_run_at` defines the target HRES data source to use for running CoCiP.
 Every six hours, ECMWF runs the HRES forecast model. The time at which this model is run
-is the `model_run_at` time.
+is the `model_run_at` time.  HRES data is stored in a `.zarr` store in GCS (the output of the HRES ETL pipeline),
+and each `.zarr` store corresponds to a single `model_run_at` time 
+(i.e. each zarr store holds 73 hours of data for the 72hrs of forecast past `model_run_at`).
 
 `model_predicted_at` defines the target timestamp for running CoCiP .
 It is expected that `model_predicted_at` occurs on or after `model_run_at`,
