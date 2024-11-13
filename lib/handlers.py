@@ -236,8 +236,10 @@ class CocipHandler:
                 level = units.ft_to_pl(fl * 100.0)
                 logger.info(f"building polygon for fl: {fl}, threshold: {thres}")
                 poly = self._build_polygons(
-                    self._cocip_grid.data.sel(level=[level])["contrails"],
-                    thres,
+                    da=self._cocip_grid.data.sel(level=[level])["contrails"],
+                    flight_level=fl,
+                    threshold=thres,
+                    job=self.job,
                 )
                 self._polygons[fl].update({thres: poly})
 
@@ -550,7 +552,9 @@ class CocipHandler:
         logger.info(f"netcdf contrails grid written to gcs at: {sink_path}.")
 
     @staticmethod
-    def _build_polygons(da: xr.DataArray, threshold: int) -> geojson.FeatureCollection:
+    def _build_polygons(
+        da: xr.DataArray, flight_level: int, threshold: int, job: ApiPreprocessorJob
+    ) -> geojson.FeatureCollection:
         # parameters for building polygons are defaults from /v0 API; see
         # https://github.com/contrailcirrus/contrails-api/blob/bd8b0a8a858be2852346c35316c7cdc96ac65a2f/app/schemas.py
         # https://github.com/contrailcirrus/contrails-api/blob/bd8b0a8a858be2852346c35316c7cdc96ac65a2f/app/settings.py
@@ -571,7 +575,22 @@ class CocipHandler:
         )
         mda = MetDataArray(da)
         poly = mda.to_polygon_feature(**params)
-        return geojson.FeatureCollection([poly])
+        geojson_blob = geojson.FeatureCollection([poly])
+
+        # add metadata properties into the `feature`
+        geojson_blob.features[0].properties = {
+            "aircraft_class": job.aircraft_class,
+            "time": datetime.fromtimestamp(job.model_predicted_at, tz=UTC).strftime(
+                "%Y-%m-%dT%H:%H:%SZ"
+            ),
+            "flight_level": flight_level,
+            "threshold": threshold,
+            "forecast_reference_time": datetime.fromtimestamp(
+                job.model_run_at, tz=UTC
+            ).strftime("%Y-%m-%dT%H:%H:%SZ"),
+        }
+
+        return geojson_blob
 
     @staticmethod
     def _save_geojson(fc: geojson.FeatureCollection, sink_path: str) -> None:
