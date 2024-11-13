@@ -501,9 +501,6 @@ class CocipHandler:
             # minify netcdf content saved to disk
             # ----------
             ds.attrs = {
-                "forecast_reference_time": datetime.fromtimestamp(
-                    job.model_run_at, tz=UTC
-                ).strftime("%Y-%m-%dT%H:%H:%SZ"),
                 "aircraft_class": job.aircraft_class,
             }
             # drop extraneous coords
@@ -511,6 +508,12 @@ class CocipHandler:
             for name, _ in ds.coords.items():
                 if name not in req_coords:
                     ds = ds.drop_vars(name)
+
+            # add `forecast_reference_time` as a coordinate sidecar to `time`
+            dt_frt = datetime.fromtimestamp(job.model_run_at, tz=UTC).replace(
+                tzinfo=None
+            )
+            ds = ds.assign_coords(forecast_reference_time=("time", np.array([dt_frt])))
 
             # convert vertical coordinates to flight_level
             ds = ds.rename({"level": "flight_level"})
@@ -527,7 +530,16 @@ class CocipHandler:
 
             # drop any non-target data vars (i.e. anything other than `contrails`
             # and, reorder dimensions and variables (optics change only)
-            ds = ds[["longitude", "latitude", "flight_level", "time", "contrails"]]
+            ds = ds[
+                [
+                    "longitude",
+                    "latitude",
+                    "flight_level",
+                    "time",
+                    "forecast_reference_time",
+                    "contrails",
+                ]
+            ]
 
             # compression reduces filesize by ~10x
             ds["contrails"].encoding.update({"zlib": True, "complevel": 1})
