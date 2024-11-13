@@ -577,6 +577,12 @@ class CocipHandler:
         poly = mda.to_polygon_feature(**params)
         geojson_blob = geojson.FeatureCollection([poly])
 
+        if len(geojson_blob.features) > 1:
+            logger.error(
+                "expected only 1 features in CoCiP geoJSON polygon object. "
+                "found multiple."
+            )
+
         # add metadata properties into the `feature`
         geojson_blob.features[0].properties = {
             "aircraft_class": job.aircraft_class,
