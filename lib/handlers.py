@@ -442,7 +442,9 @@ class CocipHandler:
             dt_frt = datetime.fromtimestamp(job.model_run_at, tz=UTC).replace(
                 tzinfo=None
             )
-            ds = ds.assign_coords(forecast_reference_time=("time", np.array([dt_frt], dtype='datetime64')))
+            ds = ds.assign_coords(
+                forecast_reference_time=("time", np.array([dt_frt], dtype="datetime64"))
+            )
 
             # convert vertical coordinates to flight_level
             ds = ds.rename({"level": "flight_level"})
@@ -515,7 +517,9 @@ class CocipHandler:
             dt_frt = datetime.fromtimestamp(job.model_run_at, tz=UTC).replace(
                 tzinfo=None
             )
-            ds = ds.assign_coords(forecast_reference_time=("time", np.array([dt_frt], dtype='datetime64')))
+            ds = ds.assign_coords(
+                forecast_reference_time=("time", np.array([dt_frt], dtype="datetime64"))
+            )
 
             # convert vertical coordinates to flight_level
             ds = ds.rename({"level": "flight_level"})
@@ -584,17 +588,21 @@ class CocipHandler:
             )
 
         # add metadata properties into the `feature`
-        geojson_blob.features[0].properties = {
-            "aircraft_class": job.aircraft_class,
-            "time": datetime.fromtimestamp(job.model_predicted_at, tz=UTC).strftime(
-                "%Y-%m-%dT%H:%H:%SZ"
-            ),
-            "flight_level": flight_level,
-            "threshold": threshold,
-            "forecast_reference_time": datetime.fromtimestamp(
-                job.model_run_at, tz=UTC
-            ).strftime("%Y-%m-%dT%H:%H:%SZ"),
-        }
+        geojson_blob.features[0].update(
+            {
+                "properties": {
+                    "aircraft_class": job.aircraft_class,
+                    "time": datetime.fromtimestamp(
+                        job.model_predicted_at, tz=UTC
+                    ).strftime("%Y-%m-%dT%H:%H:%SZ"),
+                    "flight_level": flight_level,
+                    "threshold": threshold,
+                    "forecast_reference_time": datetime.fromtimestamp(
+                        job.model_run_at, tz=UTC
+                    ).strftime("%Y-%m-%dT%H:%H:%SZ"),
+                }
+            }
+        )
 
         return geojson_blob
 
