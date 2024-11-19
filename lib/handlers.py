@@ -442,7 +442,7 @@ class CocipHandler:
             dt_frt = datetime.fromtimestamp(job.model_run_at, tz=UTC).replace(
                 tzinfo=None
             )
-            ds = ds.assign_coords(forecast_reference_time=("time", np.array([dt_frt])))
+            ds = ds.assign_coords(forecast_reference_time=("time", np.array([dt_frt], dtype='datetime64')))
 
             # convert vertical coordinates to flight_level
             ds = ds.rename({"level": "flight_level"})
