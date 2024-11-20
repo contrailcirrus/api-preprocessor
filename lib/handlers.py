@@ -594,12 +594,12 @@ class CocipHandler:
                     "aircraft_class": job.aircraft_class,
                     "time": datetime.fromtimestamp(
                         job.model_predicted_at, tz=UTC
-                    ).strftime("%Y-%m-%dT%H:%H:%SZ"),
+                    ).strftime("%Y-%m-%dT%H:%M:%SZ"),
                     "flight_level": flight_level,
                     "threshold": threshold,
                     "forecast_reference_time": datetime.fromtimestamp(
                         job.model_run_at, tz=UTC
-                    ).strftime("%Y-%m-%dT%H:%H:%SZ"),
+                    ).strftime("%Y-%m-%dT%H:%M:%SZ"),
                 }
             }
         )
