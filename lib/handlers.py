@@ -236,8 +236,10 @@ class CocipHandler:
                 level = units.ft_to_pl(fl * 100.0)
                 logger.info(f"building polygon for fl: {fl}, threshold: {thres}")
                 poly = self._build_polygons(
-                    self._cocip_grid.data.sel(level=[level])["contrails"],
-                    thres,
+                    da=self._cocip_grid.data.sel(level=[level])["contrails"],
+                    flight_level=fl,
+                    threshold=thres,
+                    job=self.job,
                 )
                 self._polygons[fl].update({thres: poly})
 
@@ -428,9 +430,6 @@ class CocipHandler:
             # minify netcdf content saved to disk
             # ----------
             ds.attrs = {
-                "forecast_reference_time": datetime.fromtimestamp(
-                    job.model_run_at, tz=UTC
-                ).strftime("%Y-%m-%dT%H:%H:%SZ"),
                 "aircraft_class": job.aircraft_class,
             }
             # drop extraneous coords
@@ -438,6 +437,14 @@ class CocipHandler:
             for name, _ in ds.coords.items():
                 if name not in req_coords:
                     ds = ds.drop_vars(name)
+
+            # add `forecast_reference_time` as a coordinate sidecar to `time`
+            dt_frt = datetime.fromtimestamp(job.model_run_at, tz=UTC).replace(
+                tzinfo=None
+            )
+            ds = ds.assign_coords(
+                forecast_reference_time=("time", np.array([dt_frt], dtype="datetime64"))
+            )
 
             # convert vertical coordinates to flight_level
             ds = ds.rename({"level": "flight_level"})
@@ -454,7 +461,16 @@ class CocipHandler:
 
             # drop any non-target data vars (i.e. anything other than `ef_per_m`
             # and, reorder dimensions and variables (optics change only)
-            ds = ds[["longitude", "latitude", "flight_level", "time", "ef_per_m"]]
+            ds = ds[
+                [
+                    "longitude",
+                    "latitude",
+                    "flight_level",
+                    "time",
+                    "forecast_reference_time",
+                    "ef_per_m",
+                ]
+            ]
 
             # compression reduces filesize by ~10x
             ds["ef_per_m"].encoding.update({"zlib": True, "complevel": 1})
@@ -489,9 +505,6 @@ class CocipHandler:
             # minify netcdf content saved to disk
             # ----------
             ds.attrs = {
-                "forecast_reference_time": datetime.fromtimestamp(
-                    job.model_run_at, tz=UTC
-                ).strftime("%Y-%m-%dT%H:%H:%SZ"),
                 "aircraft_class": job.aircraft_class,
             }
             # drop extraneous coords
@@ -499,6 +512,14 @@ class CocipHandler:
             for name, _ in ds.coords.items():
                 if name not in req_coords:
                     ds = ds.drop_vars(name)
+
+            # add `forecast_reference_time` as a coordinate sidecar to `time`
+            dt_frt = datetime.fromtimestamp(job.model_run_at, tz=UTC).replace(
+                tzinfo=None
+            )
+            ds = ds.assign_coords(
+                forecast_reference_time=("time", np.array([dt_frt], dtype="datetime64"))
+            )
 
             # convert vertical coordinates to flight_level
             ds = ds.rename({"level": "flight_level"})
@@ -515,7 +536,16 @@ class CocipHandler:
 
             # drop any non-target data vars (i.e. anything other than `contrails`
             # and, reorder dimensions and variables (optics change only)
-            ds = ds[["longitude", "latitude", "flight_level", "time", "contrails"]]
+            ds = ds[
+                [
+                    "longitude",
+                    "latitude",
+                    "flight_level",
+                    "time",
+                    "forecast_reference_time",
+                    "contrails",
+                ]
+            ]
 
             # compression reduces filesize by ~10x
             ds["contrails"].encoding.update({"zlib": True, "complevel": 1})
@@ -526,7 +556,9 @@ class CocipHandler:
         logger.info(f"netcdf contrails grid written to gcs at: {sink_path}.")
 
     @staticmethod
-    def _build_polygons(da: xr.DataArray, threshold: int) -> geojson.FeatureCollection:
+    def _build_polygons(
+        da: xr.DataArray, flight_level: int, threshold: int, job: ApiPreprocessorJob
+    ) -> geojson.FeatureCollection:
         # parameters for building polygons are defaults from /v0 API; see
         # https://github.com/contrailcirrus/contrails-api/blob/bd8b0a8a858be2852346c35316c7cdc96ac65a2f/app/schemas.py
         # https://github.com/contrailcirrus/contrails-api/blob/bd8b0a8a858be2852346c35316c7cdc96ac65a2f/app/settings.py
@@ -547,7 +579,32 @@ class CocipHandler:
         )
         mda = MetDataArray(da)
         poly = mda.to_polygon_feature(**params)
-        return geojson.FeatureCollection([poly])
+        geojson_blob = geojson.FeatureCollection([poly])
+
+        if len(geojson_blob.features) > 1:
+            logger.error(
+                "expected only 1 features in CoCiP geoJSON polygon object. "
+                "found multiple."
+            )
+
+        # add metadata properties into the `feature`
+        geojson_blob.features[0].update(
+            {
+                "properties": {
+                    "aircraft_class": job.aircraft_class,
+                    "time": datetime.fromtimestamp(
+                        job.model_predicted_at, tz=UTC
+                    ).strftime("%Y-%m-%dT%H:%M:%SZ"),
+                    "flight_level": flight_level,
+                    "threshold": threshold,
+                    "forecast_reference_time": datetime.fromtimestamp(
+                        job.model_run_at, tz=UTC
+                    ).strftime("%Y-%m-%dT%H:%M:%SZ"),
+                }
+            }
+        )
+
+        return geojson_blob
 
     @staticmethod
     def _save_geojson(fc: geojson.FeatureCollection, sink_path: str) -> None:
