@@ -344,7 +344,7 @@ class CocipHandler:
         hor_res = 0.25
         dtype = np.float64
         longitude = np.arange(-180, 180, hor_res, dtype=dtype)
-        latitude = np.arange(-80, 80.01, hor_res, dtype=dtype)
+        latitude = np.arange(-90, 90, hor_res, dtype=dtype)
         if flight_level == ApiPreprocessorJob.ALL_FLIGHT_LEVELS_WILDCARD:
             altitude_ft = [fl * 100.0 for fl in ApiPreprocessorJob.FLIGHT_LEVELS]
             level = [units.ft_to_pl(alt_ft) for alt_ft in altitude_ft]
