@@ -55,8 +55,8 @@ def run(
             f"{env.SINK_PATH}/minified_grids",
             f"{env.SINK_PATH}/regions",
         )
-        cocip_handler.read()
         try:
+            cocip_handler.read()
             cocip_handler.compute()
         except Exception:
             logger.error(
