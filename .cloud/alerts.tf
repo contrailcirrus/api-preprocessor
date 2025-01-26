@@ -11,6 +11,8 @@ resource "google_monitoring_alert_policy" "k8scronjob_api_preprocessor_prod_erro
         resource.labels.namespace_name="api-preprocessor-prod"
         labels.k8s-pod/job-name:"api-preprocessor-"
         severity>=ERROR
+        textPayload!="WARNING: All log messages before absl::InitializeLog() is called are written to STDERR"
+        jsonPayload.message!="grpc_wait_for_shutdown_with_timeout() timed out."
         EOF
     }
   }
