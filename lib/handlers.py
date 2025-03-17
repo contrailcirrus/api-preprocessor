@@ -395,8 +395,8 @@ class CocipHandler:
         a minification/mapping of ef_per_m to a domain agnostic unit.
         """
         mds = copy.deepcopy(mds)
-        mds["contrails"] = mds["ef_per_m"].data.clip(min=1e7, max=1e9)
-        mds["contrails"] = ((mds["contrails"].data - 1e7) / (1e9 - 1e7)) * 4
+        mds["contrails"] = mds["ef_per_m"].data.clip(min=1e7, max=2e9)
+        mds["contrails"] = ((mds["contrails"].data - 1e7) / (2e9 - 1e7)) * 4
 
         mds["contrails"].data.attrs = {
             "long_name": "Contrail forcing index",
