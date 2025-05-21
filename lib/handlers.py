@@ -9,10 +9,9 @@ import os
 import tempfile
 import threading
 from collections.abc import Callable, Iterator
-
 from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass
-from datetime import datetime, timedelta, timezone, UTC
+from datetime import UTC, datetime, timedelta, timezone
 from typing import Any
 
 import dask
@@ -21,6 +20,7 @@ import geojson  # type: ignore
 import google.api_core.exceptions
 import google.api_core.retry
 import numpy as np
+import pycontrails
 import xarray as xr
 from google.cloud import pubsub_v1  # type: ignore
 from google.cloud.storage import Client, transfer_manager  # type: ignore
@@ -431,6 +431,14 @@ class CocipHandler:
             # ----------
             ds.attrs = {
                 "aircraft_class": job.aircraft_class,
+                "pycontrails_version": pycontrails.__version__,
+                "met_source_provider": "ECMWF",
+                "met_source_product": "HRES",
+                "met_source_attribution": (
+                    "This product is based on data and products of the European Centre "
+                    "for Medium-range Weather Forecasts (ECMWF) but has been modified "
+                    "by Contrails.org and the Breakthrough Energy Foundation."
+                ),
             }
             # drop extraneous coords
             req_coords = {"time", "level", "latitude", "longitude"}
@@ -506,6 +514,14 @@ class CocipHandler:
             # ----------
             ds.attrs = {
                 "aircraft_class": job.aircraft_class,
+                "pycontrails_version": pycontrails.__version__,
+                "met_source_provider": "ECMWF",
+                "met_source_product": "HRES",
+                "met_source_attribution": (
+                    "This product is based on data and products of the European Centre "
+                    "for Medium-range Weather Forecasts (ECMWF) but has been modified "
+                    "by Contrails.org and the Breakthrough Energy Foundation."
+                ),
             }
             # drop extraneous coords
             req_coords = {"time", "level", "latitude", "longitude"}
@@ -600,6 +616,14 @@ class CocipHandler:
                     "forecast_reference_time": datetime.fromtimestamp(
                         job.model_run_at, tz=UTC
                     ).strftime("%Y-%m-%dT%H:%M:%SZ"),
+                    "pycontrails_version": pycontrails.__version__,
+                    "met_source_provider": "ECMWF",
+                    "met_source_product": "HRES",
+                    "met_source_attribution": (
+                        "This product is based on data and products of the European Centre "
+                        "for Medium-range Weather Forecasts (ECMWF) but has been modified "
+                        "by Contrails.org and the Breakthrough Energy Foundation."
+                    ),
                 }
             }
         )
