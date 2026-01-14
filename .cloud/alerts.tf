@@ -1,3 +1,13 @@
+variable contrails-notification-channels {
+  type = list(string)
+  default = [
+    # Nick Masson: SMS
+    "projects/contrails-301217/notificationChannels/5296843968149494052",
+    # Joffrey Peters: SMS
+    "projects/contrails-301217/notificationChannels/13394874161276152302",
+   ]
+}
+
 resource "google_monitoring_alert_policy" "k8scronjob_api_preprocessor_prod_error_in_logs" {
   display_name = "k8scronjob-api-preprocessor-prod-error-in-logs"
   combiner     = "OR"
@@ -17,10 +27,7 @@ resource "google_monitoring_alert_policy" "k8scronjob_api_preprocessor_prod_erro
     }
   }
 
-  notification_channels = [
-    # Nick Masson: SMS
-    "projects/contrails-301217/notificationChannels/5296843968149494052",
-  ]
+  notification_channels = var.contrails-notification-channels
 
   alert_strategy {
     notification_rate_limit {
